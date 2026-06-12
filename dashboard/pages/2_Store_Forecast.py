@@ -2,12 +2,12 @@
 Store Forecast — Per-Store Deep Dive
 """
 
-import streamlit as st
-import pandas as pd
+from datetime import datetime
+
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
+import streamlit as st
 
 st.set_page_config(
     page_title="Store Forecast | ADIP",
@@ -128,10 +128,15 @@ sfc = fc[fc["store_name"] == selected_store].sort_values("ds")
 if not ac.empty and "store_name" in ac.columns:
     sac = ac[ac["store_name"] == selected_store].copy()
     sac["date"] = pd.to_datetime(sac["date"])
-    daily_actual = sac.groupby("date").agg(
-        revenue=("revenue", "sum"),
-        transactions=("transactions", "sum"),
-    ).reset_index().sort_values("date")
+    daily_actual = (
+        sac.groupby("date")
+        .agg(
+            revenue=("revenue", "sum"),
+            transactions=("transactions", "sum"),
+        )
+        .reset_index()
+        .sort_values("date")
+    )
 else:
     daily_actual = pd.DataFrame()
 
@@ -232,49 +237,75 @@ with chart_col:
 
     if not sfc.empty:
         # 95% CI
-        fig.add_trace(go.Scatter(
-            x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
-            y=pd.concat([sfc["yhat_upper_95"], sfc["yhat_lower_95"][::-1]]),
-            fill="toself", fillcolor="rgba(0,212,170,0.06)",
-            line=dict(color="rgba(0,0,0,0)"), showlegend=True,
-            name="95% CI", hoverinfo="skip",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
+                y=pd.concat([sfc["yhat_upper_95"], sfc["yhat_lower_95"][::-1]]),
+                fill="toself",
+                fillcolor="rgba(0,212,170,0.06)",
+                line=dict(color="rgba(0,0,0,0)"),
+                showlegend=True,
+                name="95% CI",
+                hoverinfo="skip",
+            )
+        )
         # 80% CI
-        fig.add_trace(go.Scatter(
-            x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
-            y=pd.concat([sfc["yhat_upper_80"], sfc["yhat_lower_80"][::-1]]),
-            fill="toself", fillcolor="rgba(0,212,170,0.15)",
-            line=dict(color="rgba(0,0,0,0)"), showlegend=True,
-            name="80% CI", hoverinfo="skip",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
+                y=pd.concat([sfc["yhat_upper_80"], sfc["yhat_lower_80"][::-1]]),
+                fill="toself",
+                fillcolor="rgba(0,212,170,0.15)",
+                line=dict(color="rgba(0,0,0,0)"),
+                showlegend=True,
+                name="80% CI",
+                hoverinfo="skip",
+            )
+        )
         # Forecast
-        fig.add_trace(go.Scatter(
-            x=sfc["ds"], y=sfc["yhat"], mode="lines",
-            name="Forecast", line=dict(color=store_color, width=2.5),
-            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Forecast</extra>",
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=sfc["ds"],
+                y=sfc["yhat"],
+                mode="lines",
+                name="Forecast",
+                line=dict(color=store_color, width=2.5),
+                hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Forecast</extra>",
+            )
+        )
 
     # Actuals
     if not daily_actual.empty:
         hist = daily_actual[daily_actual["date"] < today]
         if not hist.empty:
-            fig.add_trace(go.Scatter(
-                x=hist["date"], y=hist["revenue"], mode="lines+markers",
-                name="Actual", line=dict(color="#FFD93D", width=2, dash="dot"),
-                marker=dict(size=4, color="#FFD93D"),
-                hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Actual</extra>",
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=hist["date"],
+                    y=hist["revenue"],
+                    mode="lines+markers",
+                    name="Actual",
+                    line=dict(color="#FFD93D", width=2, dash="dot"),
+                    marker=dict(size=4, color="#FFD93D"),
+                    hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Actual</extra>",
+                )
+            )
 
     fig.add_vline(
-        x=today, line_dash="dash", line_color="#FF6B6B", line_width=2,
-        annotation_text="Today", annotation_position="top",
+        x=today,
+        line_dash="dash",
+        line_color="#FF6B6B",
+        line_width=2,
+        annotation_text="Today",
+        annotation_position="top",
         annotation_font=dict(color="#FF6B6B", size=11),
     )
 
     fig.update_layout(
         template="plotly_dark",
-        paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-        height=380, margin=dict(l=10, r=10, t=30, b=30),
+        paper_bgcolor=PAL["bg"],
+        plot_bgcolor=PAL["bg"],
+        height=380,
+        margin=dict(l=10, r=10, t=30, b=30),
         font=dict(family="Inter", color=PAL["text"]),
         legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center", font=dict(size=10)),
         xaxis=dict(showgrid=True, gridcolor=PAL["grid"], title=""),
@@ -294,17 +325,23 @@ with metrics_col:
     if not daily_actual.empty and not sfc.empty:
         merged = sfc.merge(
             daily_actual[["date", "revenue"]],
-            left_on="ds", right_on="date", how="inner",
+            left_on="ds",
+            right_on="date",
+            how="inner",
         )
         if not merged.empty and len(merged) > 2:
             errors = merged["yhat"] - merged["revenue"]
-            abs_pct_errors = (errors.abs() / merged["revenue"].replace(0, 1))
+            abs_pct_errors = errors.abs() / merged["revenue"].replace(0, 1)
             mape = abs_pct_errors.mean() * 100
-            rmse = np.sqrt((errors ** 2).mean())
+            rmse = np.sqrt((errors**2).mean())
             mae = errors.abs().mean()
             # Coverage
-            in_80 = ((merged["revenue"] >= merged["yhat_lower_80"]) & (merged["revenue"] <= merged["yhat_upper_80"])).mean() * 100
-            in_95 = ((merged["revenue"] >= merged["yhat_lower_95"]) & (merged["revenue"] <= merged["yhat_upper_95"])).mean() * 100
+            in_80 = (
+                (merged["revenue"] >= merged["yhat_lower_80"]) & (merged["revenue"] <= merged["yhat_upper_80"])
+            ).mean() * 100
+            in_95 = (
+                (merged["revenue"] >= merged["yhat_lower_95"]) & (merged["revenue"] <= merged["yhat_upper_95"])
+            ).mean() * 100
             bias = errors.mean()
         else:
             mape, rmse, mae, in_80, in_95, bias = 6.5, 180, 140, 82, 96, -12
@@ -346,26 +383,39 @@ with bot1:
 
     fig_txn = go.Figure()
     if "transactions" in sfc.columns:
-        fig_txn.add_trace(go.Scatter(
-            x=sfc["ds"], y=sfc["transactions"], mode="lines",
-            name="Forecast", line=dict(color="#4ECDC4", width=2),
-            fill="tozeroy", fillcolor="rgba(78,205,196,0.08)",
-            hovertemplate="<b>%{x|%b %d}</b><br>%{y:,} txns<extra></extra>",
-        ))
+        fig_txn.add_trace(
+            go.Scatter(
+                x=sfc["ds"],
+                y=sfc["transactions"],
+                mode="lines",
+                name="Forecast",
+                line=dict(color="#4ECDC4", width=2),
+                fill="tozeroy",
+                fillcolor="rgba(78,205,196,0.08)",
+                hovertemplate="<b>%{x|%b %d}</b><br>%{y:,} txns<extra></extra>",
+            )
+        )
     if not daily_actual.empty and "transactions" in daily_actual.columns:
         hist = daily_actual[daily_actual["date"] < today]
         if not hist.empty:
-            fig_txn.add_trace(go.Scatter(
-                x=hist["date"], y=hist["transactions"], mode="lines+markers",
-                name="Actual", line=dict(color="#FFD93D", width=1.5, dash="dot"),
-                marker=dict(size=3),
-            ))
+            fig_txn.add_trace(
+                go.Scatter(
+                    x=hist["date"],
+                    y=hist["transactions"],
+                    mode="lines+markers",
+                    name="Actual",
+                    line=dict(color="#FFD93D", width=1.5, dash="dot"),
+                    marker=dict(size=3),
+                )
+            )
 
     fig_txn.add_vline(x=today, line_dash="dash", line_color="#FF6B6B", line_width=1.5)
     fig_txn.update_layout(
         template="plotly_dark",
-        paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-        height=300, margin=dict(l=10, r=10, t=20, b=30),
+        paper_bgcolor=PAL["bg"],
+        plot_bgcolor=PAL["bg"],
+        height=300,
+        margin=dict(l=10, r=10, t=20, b=30),
         font=dict(family="Inter", color=PAL["text"], size=11),
         legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center", font=dict(size=10)),
         xaxis=dict(showgrid=True, gridcolor=PAL["grid"]),
@@ -399,17 +449,23 @@ with bot2:
 
         for i, col in enumerate(cat_cols):
             nice = cat_names.get(col, col.replace("category_", "").title())
-            fig_cat.add_trace(go.Bar(
-                x=weekly["ds"], y=weekly[col],
-                name=nice, marker_color=colors[i % len(colors)],
-                hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>" + nice + "</extra>",
-            ))
+            fig_cat.add_trace(
+                go.Bar(
+                    x=weekly["ds"],
+                    y=weekly[col],
+                    name=nice,
+                    marker_color=colors[i % len(colors)],
+                    hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>" + nice + "</extra>",
+                )
+            )
 
         fig_cat.update_layout(
             barmode="stack",
             template="plotly_dark",
-            paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-            height=300, margin=dict(l=10, r=10, t=20, b=30),
+            paper_bgcolor=PAL["bg"],
+            plot_bgcolor=PAL["bg"],
+            height=300,
+            margin=dict(l=10, r=10, t=20, b=30),
             font=dict(family="Inter", color=PAL["text"], size=11),
             legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center", font=dict(size=10)),
             xaxis=dict(showgrid=False),

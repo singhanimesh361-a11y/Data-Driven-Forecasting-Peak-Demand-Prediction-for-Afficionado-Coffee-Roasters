@@ -6,7 +6,6 @@ All forecasters follow the BaseForecaster ABC contract.
 """
 
 import logging
-import pickle
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -212,9 +211,7 @@ class NaiveForecaster(BaseForecaster):
             last_val = self._last_values[sid]
             pred = np.full(horizon, last_val)
             start = self._last_dates[sid] + pd.Timedelta(days=1)
-            frames.append(
-                self._build_forecast_df(sid, pred, start, self._residual_stds[sid])
-            )
+            frames.append(self._build_forecast_df(sid, pred, start, self._residual_stds[sid]))
         return pd.concat(frames, ignore_index=True)
 
 
@@ -315,15 +312,8 @@ class SeasonalNaiveForecaster(BaseForecaster):
         for sid in store_ids:
             start = self._last_dates[sid] + pd.Timedelta(days=1)
             dates = pd.date_range(start=start, periods=horizon, freq="D")
-            preds = np.array(
-                [
-                    self._weekday_values[sid].get(d.dayofweek, 0.0)
-                    for d in dates
-                ]
-            )
-            frames.append(
-                self._build_forecast_df(sid, preds, start, self._residual_stds[sid])
-            )
+            preds = np.array([self._weekday_values[sid].get(d.dayofweek, 0.0) for d in dates])
+            frames.append(self._build_forecast_df(sid, preds, start, self._residual_stds[sid]))
         return pd.concat(frames, ignore_index=True)
 
 
@@ -372,13 +362,13 @@ class MovingAverageForecaster(BaseForecaster):
         for store_id, grp in df.groupby("store_id"):
             grp = grp.sort_values("date")
             values = grp[target_col].values.astype(float)
-            self._histories[store_id] = values[-self.window:]
+            self._histories[store_id] = values[-self.window :]
             self._last_dates[store_id] = pd.to_datetime(grp["date"].iloc[-1])
 
             # In-sample residuals: actual - rolling mean prediction
             if len(values) > self.window:
                 rolling_preds = pd.Series(values).rolling(window=self.window, min_periods=1).mean().values
-                residuals = values[self.window:] - rolling_preds[self.window - 1 : -1]
+                residuals = values[self.window :] - rolling_preds[self.window - 1 : -1]
                 self._residual_stds[store_id] = float(np.std(residuals, ddof=1)) if len(residuals) > 1 else 0.0
             else:
                 self._residual_stds[store_id] = float(np.std(values, ddof=1)) if len(values) > 1 else 0.0
@@ -429,15 +419,11 @@ class MovingAverageForecaster(BaseForecaster):
             history = list(self._histories[sid])
             preds: list[float] = []
             for _ in range(horizon):
-                window_slice = history[-self.window:]
+                window_slice = history[-self.window :]
                 pred = float(np.mean(window_slice))
                 preds.append(pred)
                 history.append(pred)
 
             start = self._last_dates[sid] + pd.Timedelta(days=1)
-            frames.append(
-                self._build_forecast_df(
-                    sid, np.array(preds), start, self._residual_stds[sid]
-                )
-            )
+            frames.append(self._build_forecast_df(sid, np.array(preds), start, self._residual_stds[sid]))
         return pd.concat(frames, ignore_index=True)

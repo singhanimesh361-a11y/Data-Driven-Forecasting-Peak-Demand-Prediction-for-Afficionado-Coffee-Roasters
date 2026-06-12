@@ -2,12 +2,13 @@
 Hourly Heatmap — Demand Patterns by Hour × Day-of-Week
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 import io
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(
     page_title="Hourly Heatmap | ADIP",
@@ -115,22 +116,36 @@ def build_heatmap_matrix(store_name: str) -> tuple:
         rows = []
         np.random.seed(hash(store_name) % 2**31)
         hour_weights = {
-            6: 0.04, 7: 0.08, 8: 0.12, 9: 0.11, 10: 0.10,
-            11: 0.09, 12: 0.09, 13: 0.08, 14: 0.06, 15: 0.05,
-            16: 0.05, 17: 0.04, 18: 0.04, 19: 0.03, 20: 0.02,
+            6: 0.04,
+            7: 0.08,
+            8: 0.12,
+            9: 0.11,
+            10: 0.10,
+            11: 0.09,
+            12: 0.09,
+            13: 0.08,
+            14: 0.06,
+            15: 0.05,
+            16: 0.05,
+            17: 0.04,
+            18: 0.04,
+            19: 0.03,
+            20: 0.02,
         }
         for _, row in sdf_daily.iterrows():
             for h in range(6, 21):
                 w = hour_weights[h]
                 txn = int(row.get("transactions", row["yhat"] / 6.5) * w)
                 rev = row["yhat"] * w
-                rows.append({
-                    "date": row["ds"],
-                    "hour": h,
-                    "dow": row["ds"].dayofweek,
-                    "transactions": max(txn + np.random.randint(-5, 5), 1),
-                    "revenue": round(rev + np.random.normal(0, rev * 0.05), 2),
-                })
+                rows.append(
+                    {
+                        "date": row["ds"],
+                        "hour": h,
+                        "dow": row["ds"].dayofweek,
+                        "transactions": max(txn + np.random.randint(-5, 5), 1),
+                        "revenue": round(rev + np.random.normal(0, rev * 0.05), 2),
+                    }
+                )
         sdf = pd.DataFrame(rows)
         value_col = "transactions" if metric_choice == "Transactions" else "revenue"
 
@@ -179,7 +194,8 @@ for idx, store in enumerate(active_stores):
             if metric_choice == "Transactions" and val >= 500:
                 annotations.append(
                     dict(
-                        x=DOW_LABELS[j], y=hour_labels_rev[i],
+                        x=DOW_LABELS[j],
+                        y=hour_labels_rev[i],
                         text=f"{val:.0f}",
                         font=dict(color="white" if val >= threshold_90 else "#e6edf3", size=9, family="Inter"),
                         showarrow=False,
@@ -188,7 +204,8 @@ for idx, store in enumerate(active_stores):
             elif metric_choice == "Revenue" and val >= 200:
                 annotations.append(
                     dict(
-                        x=DOW_LABELS[j], y=hour_labels_rev[i],
+                        x=DOW_LABELS[j],
+                        y=hour_labels_rev[i],
                         text=f"${val:,.0f}",
                         font=dict(color="white" if val >= threshold_90 else "#e6edf3", size=8, family="Inter"),
                         showarrow=False,
@@ -203,11 +220,7 @@ for idx, store in enumerate(active_stores):
             colorscale="YlOrRd",
             hovertemplate=(
                 "<b>%{y} — %{x}</b><br>"
-                + (
-                    "%{z:.0f} transactions"
-                    if metric_choice == "Transactions"
-                    else "$%{z:,.0f} revenue"
-                )
+                + ("%{z:.0f} transactions" if metric_choice == "Transactions" else "$%{z:,.0f} revenue")
                 + "<extra></extra>"
             ),
             colorbar=dict(
@@ -272,14 +285,16 @@ download_rows = []
 for store, matrix in all_matrices.items():
     for h_idx, hour_label in enumerate(HOUR_LABELS):
         for d_idx, dow_label in enumerate(DOW_LABELS):
-            download_rows.append({
-                "Store": store,
-                "Hour": hour_label,
-                "Day": dow_label,
-                "Value": round(matrix[h_idx][d_idx], 2),
-                "Metric": metric_choice,
-                "Mode": mode,
-            })
+            download_rows.append(
+                {
+                    "Store": store,
+                    "Hour": hour_label,
+                    "Day": dow_label,
+                    "Value": round(matrix[h_idx][d_idx], 2),
+                    "Metric": metric_choice,
+                    "Mode": mode,
+                }
+            )
 
 csv_df = pd.DataFrame(download_rows)
 csv_buffer = io.StringIO()

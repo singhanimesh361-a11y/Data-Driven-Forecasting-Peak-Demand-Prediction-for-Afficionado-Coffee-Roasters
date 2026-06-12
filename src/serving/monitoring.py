@@ -14,19 +14,17 @@ AlertManager
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import smtplib
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 import requests
 
@@ -37,9 +35,11 @@ import requests
 logger = logging.getLogger("adip.monitoring")
 if not logger.handlers:
     _h = logging.StreamHandler(sys.stdout)
-    _h.setFormatter(logging.Formatter(
-        '{"timestamp":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}'
-    ))
+    _h.setFormatter(
+        logging.Formatter(
+            '{"timestamp":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}'
+        )
+    )
     logger.addHandler(_h)
     logger.setLevel(logging.INFO)
 
@@ -49,22 +49,31 @@ if not logger.handlers:
 
 STORES = ["Store_1", "Store_2", "Store_3"]
 CATEGORIES = [
-    "Coffee", "Tea", "Bakery", "Drinking Chocolate", "Coffee beans",
-    "Branded", "Loose Tea", "Flavours", "Packaged Chocolate",
+    "Coffee",
+    "Tea",
+    "Bakery",
+    "Drinking Chocolate",
+    "Coffee beans",
+    "Branded",
+    "Loose Tea",
+    "Flavours",
+    "Packaged Chocolate",
 ]
 
 DRIFT_THRESHOLD_PP = 10.0  # percentage-point increase in MAPE triggers drift
-STALENESS_HOURS = 25       # forecasts older than this are stale
-MIN_FORECAST_ROWS = 100    # minimum rows expected in a forecast file
+STALENESS_HOURS = 25  # forecasts older than this are stale
+MIN_FORECAST_ROWS = 100  # minimum rows expected in a forecast file
 
 
 # ---------------------------------------------------------------------------
 # Data classes for structured results
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DriftResult:
     """Result of a drift check for one store×category pair."""
+
     store: str
     category: str
     training_mape: float
@@ -88,6 +97,7 @@ class DriftResult:
 @dataclass
 class HealthStatus:
     """Overall system health status."""
+
     healthy: bool
     forecasts_fresh: bool
     data_available: bool
@@ -99,6 +109,7 @@ class HealthStatus:
 # ---------------------------------------------------------------------------
 # ForecastMonitor
 # ---------------------------------------------------------------------------
+
 
 class ForecastMonitor:
     """
@@ -170,15 +181,19 @@ class ForecastMonitor:
 
                 if is_drifted:
                     logger.warning(
-                        "DRIFT DETECTED: %s / %s — MAPE increased %.1f pp "
-                        "(training=%.1f%%, recent=%.1f%%)",
-                        store, category, delta, training_mape, recent_mape,
+                        "DRIFT DETECTED: %s / %s — MAPE increased %.1f pp " "(training=%.1f%%, recent=%.1f%%)",
+                        store,
+                        category,
+                        delta,
+                        training_mape,
+                        recent_mape,
                     )
 
         drifted_count = sum(1 for r in results if r.is_drifted)
         logger.info(
             "Drift check complete: %d/%d pairs drifted",
-            drifted_count, len(results),
+            drifted_count,
+            len(results),
         )
         return results
 
@@ -313,7 +328,9 @@ class ForecastMonitor:
 
         logger.info(
             "Data staleness: %s (age=%.1fh, threshold=%dh)",
-            result["message"], age_hours, STALENESS_HOURS,
+            result["message"],
+            age_hours,
+            STALENESS_HOURS,
         )
         return result
 
@@ -321,6 +338,7 @@ class ForecastMonitor:
 # ---------------------------------------------------------------------------
 # AlertManager
 # ---------------------------------------------------------------------------
+
 
 class AlertManager:
     """
@@ -402,12 +420,12 @@ class AlertManager:
         if not self.slack_webhook and not self.email:
             logger.warning(
                 "No alert channels configured — alert logged only: [%s] %s: %s",
-                level.upper(), title, body,
+                level.upper(),
+                title,
+                body,
             )
 
-    def _send_slack(
-        self, level: str, emoji: str, title: str, body: str, timestamp: str
-    ) -> None:
+    def _send_slack(self, level: str, emoji: str, title: str, body: str, timestamp: str) -> None:
         """Send alert to Slack via incoming webhook."""
         color = self.LEVEL_COLORS.get(level, "#607D8B")
         payload = {
@@ -455,14 +473,13 @@ class AlertManager:
             else:
                 logger.error(
                     "Slack alert failed: HTTP %d — %s",
-                    resp.status_code, resp.text,
+                    resp.status_code,
+                    resp.text,
                 )
         except requests.RequestException as exc:
             logger.error("Slack alert failed: %s", exc)
 
-    def _send_email(
-        self, level: str, emoji: str, title: str, body: str, timestamp: str
-    ) -> None:
+    def _send_email(self, level: str, emoji: str, title: str, body: str, timestamp: str) -> None:
         """Send alert via SMTP email."""
         msg = MIMEMultipart("alternative")
         msg["Subject"] = f"[ADIP {level.upper()}] {title}"
@@ -529,11 +546,7 @@ class AlertManager:
         any_drift = any(r.is_drifted for r in drift_results)
 
         # Aggregate
-        healthy = (
-            not staleness["is_stale"]
-            and availability.get("available", False)
-            and not any_drift
-        )
+        healthy = not staleness["is_stale"] and availability.get("available", False) and not any_drift
 
         status = HealthStatus(
             healthy=healthy,

@@ -18,9 +18,8 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -55,6 +54,7 @@ def _mlflow_log_param(key: str, value: Any) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_param(key, value)
     except ImportError:
@@ -72,6 +72,7 @@ def _mlflow_log_metric(key: str, value: float) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_metric(key, value)
     except ImportError:
@@ -162,9 +163,7 @@ class XGBoostForecaster(BaseForecaster):
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 100, 1000),
             "max_depth": trial.suggest_int("max_depth", 3, 9),
-            "learning_rate": trial.suggest_float(
-                "learning_rate", 0.01, 0.3, log=True
-            ),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
             "subsample": trial.suggest_float("subsample", 0.6, 1.0),
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
             "reg_alpha": trial.suggest_float("reg_alpha", 0.0, 10.0),
@@ -230,11 +229,7 @@ class XGBoostForecaster(BaseForecaster):
         _mlflow_log_param("xgb_feature_cols", str(feature_cols))
 
         for sid in store_ids:
-            store_df = (
-                df.loc[df["store_id"] == sid]
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
+            store_df = df.loc[df["store_id"] == sid].sort_values("date").reset_index(drop=True)
             n = len(store_df)
             split_idx = int(n * 0.8)
 
@@ -246,17 +241,13 @@ class XGBoostForecaster(BaseForecaster):
             X_val = val_slice[feature_cols].values.astype(np.float32)
             y_val = val_slice[target_col].values.astype(np.float32)
 
-            logger.info(
-                "  [%s] Train=%d  Val=%d", sid, len(X_train), len(X_val)
-            )
+            logger.info("  [%s] Train=%d  Val=%d", sid, len(X_train), len(X_val))
 
             # Optuna study – minimise MAPE
             optuna.logging.set_verbosity(optuna.logging.WARNING)
             study = optuna.create_study(direction="minimize")
             study.optimize(
-                lambda trial: self._optuna_objective(
-                    trial, X_train, y_train, X_val, y_val
-                ),
+                lambda trial: self._optuna_objective(trial, X_train, y_train, X_val, y_val),
                 n_trials=self.n_optuna_trials,
                 show_progress_bar=False,
             )
@@ -286,9 +277,7 @@ class XGBoostForecaster(BaseForecaster):
             val_preds = final_model.predict(X_val)
             residuals = y_val - val_preds
             self.residual_std[sid] = float(np.std(residuals))
-            _mlflow_log_metric(
-                f"xgb_{sid}_residual_std", self.residual_std[sid]
-            )
+            _mlflow_log_metric(f"xgb_{sid}_residual_std", self.residual_std[sid])
 
             # SHAP values
             try:
@@ -297,17 +286,11 @@ class XGBoostForecaster(BaseForecaster):
                 explainer = shap.TreeExplainer(final_model)
                 sv = explainer.shap_values(X_val)
                 self.shap_values[sid] = sv
-                logger.info(
-                    "  [%s] SHAP values computed: shape=%s", sid, sv.shape
-                )
+                logger.info("  [%s] SHAP values computed: shape=%s", sid, sv.shape)
             except ImportError:
-                logger.warning(
-                    "  [%s] shap not installed — skipping importance", sid
-                )
+                logger.warning("  [%s] shap not installed — skipping importance", sid)
             except Exception:
-                logger.warning(
-                    "  [%s] SHAP computation failed", sid, exc_info=True
-                )
+                logger.warning("  [%s] SHAP computation failed", sid, exc_info=True)
 
         return self
 
@@ -339,10 +322,7 @@ class XGBoostForecaster(BaseForecaster):
             KeyError: If *store_id* was not fitted.
         """
         if store_id not in self.models:
-            raise KeyError(
-                f"No fitted model for store_id='{store_id}'. "
-                f"Available: {list(self.models.keys())}"
-            )
+            raise KeyError(f"No fitted model for store_id='{store_id}'. " f"Available: {list(self.models.keys())}")
 
         model = self.models[store_id]
         feat_cols = self._training_features.get(store_id, self.feature_cols)
@@ -353,10 +333,7 @@ class XGBoostForecaster(BaseForecaster):
 
         result = pd.DataFrame(
             {
-                "forecast_date": (
-                    X["date"].values if "date" in X.columns
-                    else pd.RangeIndex(len(point))
-                ),
+                "forecast_date": (X["date"].values if "date" in X.columns else pd.RangeIndex(len(point))),
                 "store_id": store_id,
                 "predicted_value": np.maximum(point, 0.0),
                 "lower_80": np.maximum(point - 1.28 * sigma, 0.0),
@@ -384,31 +361,21 @@ class XGBoostForecaster(BaseForecaster):
                 computation failed).
         """
         if store_id not in self.shap_values:
-            raise KeyError(
-                f"No SHAP values for store_id='{store_id}'. "
-                f"Available: {list(self.shap_values.keys())}"
-            )
+            raise KeyError(f"No SHAP values for store_id='{store_id}'. " f"Available: {list(self.shap_values.keys())}")
 
         sv = self.shap_values[store_id]
         mean_abs = np.mean(np.abs(sv), axis=0)
         feat_cols = self._training_features.get(store_id, self.feature_cols)
 
-        importance_df = pd.DataFrame(
-            {"feature_name": feat_cols, "mean_shap_value": mean_abs}
-        )
-        importance_df = importance_df.sort_values(
-            "mean_shap_value", ascending=False
-        ).reset_index(drop=True)
+        importance_df = pd.DataFrame({"feature_name": feat_cols, "mean_shap_value": mean_abs})
+        importance_df = importance_df.sort_values("mean_shap_value", ascending=False).reset_index(drop=True)
         importance_df["rank"] = importance_df.index + 1
         return importance_df
 
     # -- Repr --------------------------------------------------------------
     def __repr__(self) -> str:
         fitted = list(self.models.keys())
-        return (
-            f"XGBoostForecaster(n_optuna_trials={self.n_optuna_trials}, "
-            f"stores_fitted={fitted})"
-        )
+        return f"XGBoostForecaster(n_optuna_trials={self.n_optuna_trials}, " f"stores_fitted={fitted})"
 
 
 # ---------------------------------------------------------------------------
@@ -478,8 +445,14 @@ if __name__ == "__main__":
         X_future = df.tail(10).copy()
         preds = fc.predict(X_future, store_id="store_0")
         expected = {
-            "forecast_date", "store_id", "predicted_value",
-            "lower_80", "upper_80", "lower_95", "upper_95", "model_name",
+            "forecast_date",
+            "store_id",
+            "predicted_value",
+            "lower_80",
+            "upper_80",
+            "lower_95",
+            "upper_95",
+            "model_name",
         }
         assert set(preds.columns) == expected
         print("PASS: test_predict_schema")

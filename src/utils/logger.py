@@ -12,27 +12,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-
 # ---------------------------------------------------------------
 # Noisy loggers to suppress by default
 # ---------------------------------------------------------------
 _NOISY_LOGGERS = [
-    'prophet',
-    'cmdstanpy',
-    'matplotlib',
-    'matplotlib.font_manager',
-    'PIL',
-    'urllib3',
-    'numexpr',
+    "prophet",
+    "cmdstanpy",
+    "matplotlib",
+    "matplotlib.font_manager",
+    "PIL",
+    "urllib3",
+    "numexpr",
 ]
 
-_DEFAULT_FORMAT = '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
-_DEFAULT_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+_DEFAULT_FORMAT = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+_DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 # ---------------------------------------------------------------
 # JSON formatter
 # ---------------------------------------------------------------
+
 
 class _JSONFormatter(logging.Formatter):
     """Emit each log record as a single-line JSON object.
@@ -51,15 +51,13 @@ class _JSONFormatter(logging.Formatter):
             A single-line JSON string.
         """
         log_entry: dict = {
-            'timestamp': datetime.fromtimestamp(
-                record.created, tz=timezone.utc
-            ).isoformat(),
-            'name': record.name,
-            'level': record.levelname,
-            'message': record.getMessage(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "name": record.name,
+            "level": record.levelname,
+            "message": record.getMessage(),
         }
         if record.exc_info and record.exc_info[0] is not None:
-            log_entry['exc_info'] = self.formatException(record.exc_info)
+            log_entry["exc_info"] = self.formatException(record.exc_info)
         return json.dumps(log_entry, default=str)
 
 
@@ -67,9 +65,10 @@ class _JSONFormatter(logging.Formatter):
 # Public API
 # ---------------------------------------------------------------
 
+
 def get_logger(
     name: str,
-    level: str = 'INFO',
+    level: str = "INFO",
     json_format: bool = False,
 ) -> logging.Logger:
     """Create or retrieve a named logger with a consistent format.
@@ -101,9 +100,7 @@ def get_logger(
     if json_format:
         console_handler.setFormatter(_JSONFormatter())
     else:
-        console_handler.setFormatter(
-            logging.Formatter(_DEFAULT_FORMAT, datefmt=_DEFAULT_DATE_FORMAT)
-        )
+        console_handler.setFormatter(logging.Formatter(_DEFAULT_FORMAT, datefmt=_DEFAULT_DATE_FORMAT))
 
     logger.addHandler(console_handler)
 
@@ -140,19 +137,17 @@ def setup_file_handler(
     log_path.mkdir(parents=True, exist_ok=True)
 
     if filename is None:
-        safe_name = logger.name.replace('.', '_')
-        filename = f'{safe_name}.log'
+        safe_name = logger.name.replace(".", "_")
+        filename = f"{safe_name}.log"
 
     file_path = log_path / filename
-    file_handler = logging.FileHandler(str(file_path), encoding='utf-8')
+    file_handler = logging.FileHandler(str(file_path), encoding="utf-8")
     file_handler.setLevel(logger.level)
 
     if json_format:
         file_handler.setFormatter(_JSONFormatter())
     else:
-        file_handler.setFormatter(
-            logging.Formatter(_DEFAULT_FORMAT, datefmt=_DEFAULT_DATE_FORMAT)
-        )
+        file_handler.setFormatter(logging.Formatter(_DEFAULT_FORMAT, datefmt=_DEFAULT_DATE_FORMAT))
 
     logger.addHandler(file_handler)
     return file_handler

@@ -25,11 +25,10 @@ from __future__ import annotations
 
 import io
 import logging
-import sys
 import warnings
 from abc import ABC, abstractmethod
 from contextlib import redirect_stderr, redirect_stdout
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -67,6 +66,7 @@ def _mlflow_log_param(key: str, value: Any) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_param(key, value)
     except ImportError:
@@ -84,6 +84,7 @@ def _mlflow_log_metric(key: str, value: float) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_metric(key, value)
     except ImportError:
@@ -160,7 +161,7 @@ class ProphetForecaster(BaseForecaster):
             uncertainty_samples=1000,
             interval_width=0.80,
             seasonality_mode="multiplicative",
-            **kwargs
+            **kwargs,
         )
         return model
 
@@ -191,15 +192,10 @@ class ProphetForecaster(BaseForecaster):
             ValueError: If *target_col* is missing from *df*.
         """
         if target_col not in df.columns:
-            raise ValueError(
-                f"Target column '{target_col}' not found. "
-                f"Available: {list(df.columns)}"
-            )
+            raise ValueError(f"Target column '{target_col}' not found. " f"Available: {list(df.columns)}")
 
         store_ids: List[str] = sorted(df["store_id"].unique().tolist())
-        logger.info(
-            "Fitting Prophet models for %d store(s): %s", len(store_ids), store_ids
-        )
+        logger.info("Fitting Prophet models for %d store(s): %s", len(store_ids), store_ids)
 
         _mlflow_log_param("prophet_freq", self.freq)
         _mlflow_log_param("prophet_weekly_seasonality", True)
@@ -208,14 +204,8 @@ class ProphetForecaster(BaseForecaster):
         _mlflow_log_param("prophet_seasonality_mode", "multiplicative")
 
         for sid in store_ids:
-            store_df = (
-                df.loc[df["store_id"] == sid]
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
-            prophet_df = store_df.rename(
-                columns={"date": "ds", target_col: "y"}
-            )[["ds", "y"]].copy()
+            store_df = df.loc[df["store_id"] == sid].sort_values("date").reset_index(drop=True)
+            prophet_df = store_df.rename(columns={"date": "ds", target_col: "y"})[["ds", "y"]].copy()
             prophet_df["ds"] = pd.to_datetime(prophet_df["ds"])
 
             self.training_data[sid] = prophet_df.copy()
@@ -223,27 +213,28 @@ class ProphetForecaster(BaseForecaster):
             best_params = {}
             if self.n_optuna_trials > 0 and len(prophet_df) > 14:
                 import optuna
+
                 optuna.logging.set_verbosity(optuna.logging.ERROR)
-                
+
                 # Time-based split
                 val_size = 7
                 train_df = prophet_df.iloc[:-val_size]
                 val_df = prophet_df.iloc[-val_size:]
-                
+
                 def objective(trial):
                     cps = trial.suggest_float("changepoint_prior_scale", 0.001, 0.5, log=True)
                     sps = trial.suggest_float("seasonality_prior_scale", 0.01, 10.0, log=True)
-                    
+
                     m = self._make_prophet(changepoint_prior_scale=cps, seasonality_prior_scale=sps)
                     with warnings.catch_warnings():
                         warnings.simplefilter("ignore")
                         _devnull = io.StringIO()
                         with redirect_stdout(_devnull), redirect_stderr(_devnull):
                             m.fit(train_df)
-                    
+
                     preds = m.predict(val_df[["ds"]])
                     return _safe_mape(val_df["y"].values, preds["yhat"].values)
-                
+
                 study = optuna.create_study(direction="minimize")
                 study.optimize(objective, n_trials=self.n_optuna_trials)
                 best_params = study.best_params
@@ -264,9 +255,7 @@ class ProphetForecaster(BaseForecaster):
 
             # In-sample MAPE
             in_sample = model.predict(prophet_df[["ds"]])
-            mape = _safe_mape(
-                prophet_df["y"].values, in_sample["yhat"].values
-            )
+            mape = _safe_mape(prophet_df["y"].values, in_sample["yhat"].values)
             self.training_mape[sid] = mape
             logger.info("  [%s] Training MAPE = %.2f%%", sid, mape)
             _mlflow_log_metric(f"prophet_{sid}_train_mape", mape)
@@ -298,10 +287,7 @@ class ProphetForecaster(BaseForecaster):
             KeyError: If *store_id* has not been fitted.
         """
         if store_id not in self.models:
-            raise KeyError(
-                f"No fitted model for store_id='{store_id}'. "
-                f"Available: {list(self.models.keys())}"
-            )
+            raise KeyError(f"No fitted model for store_id='{store_id}'. " f"Available: {list(self.models.keys())}")
 
         model = self.models[store_id]
 
@@ -368,10 +354,7 @@ class ProphetForecaster(BaseForecaster):
             KeyError: If *store_id* has not been fitted.
         """
         if store_id not in self.models:
-            raise KeyError(
-                f"No fitted model for store_id='{store_id}'. "
-                f"Available: {list(self.models.keys())}"
-            )
+            raise KeyError(f"No fitted model for store_id='{store_id}'. " f"Available: {list(self.models.keys())}")
 
         model = self.models[store_id]
         train_df = self.training_data[store_id]
@@ -449,8 +432,14 @@ if __name__ == "__main__":
         fc.fit(df)
         preds = fc.predict(horizon=7, store_id="store_0")
         expected_cols = {
-            "forecast_date", "store_id", "predicted_value",
-            "lower_80", "upper_80", "lower_95", "upper_95", "model_name",
+            "forecast_date",
+            "store_id",
+            "predicted_value",
+            "lower_80",
+            "upper_80",
+            "lower_95",
+            "upper_95",
+            "model_name",
         }
         assert set(preds.columns) == expected_cols
         assert len(preds) == 7

@@ -21,7 +21,7 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -42,6 +42,7 @@ def _mlflow_log_param(key: str, value: Any) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_param(key, value)
     except ImportError:
@@ -59,6 +60,7 @@ def _mlflow_log_metric(key: str, value: float) -> None:
     """
     try:
         import mlflow
+
         if mlflow.active_run() is not None:
             mlflow.log_metric(key, value)
     except ImportError:
@@ -181,11 +183,7 @@ class EnsembleForecaster:
         _mlflow_log_param("ensemble_quality_threshold", self.quality_threshold_mape)
 
         for sid in store_ids:
-            store_val = (
-                val_df.loc[val_df["store_id"] == sid]
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
+            store_val = val_df.loc[val_df["store_id"] == sid].sort_values("date").reset_index(drop=True)
             y_true = store_val[target_col].values.astype(float)
             n_val = len(store_val)
 
@@ -213,7 +211,7 @@ class EnsembleForecaster:
                 sid,
                 prophet_mape,
                 xgb_mape,
-                f"{lstm_mape:.2f}%" if lstm_mape is not None else "N/A"
+                f"{lstm_mape:.2f}%" if lstm_mape is not None else "N/A",
             )
             _mlflow_log_metric(f"ensemble_{sid}_prophet_mape", prophet_mape)
             _mlflow_log_metric(f"ensemble_{sid}_xgb_mape", xgb_mape)
@@ -302,13 +300,12 @@ class EnsembleForecaster:
             1-D numpy array of point predictions.
         """
         try:
-            preds_df = self.prophet.predict(
-                horizon=n_val, store_id=store_id
-            )
+            preds_df = self.prophet.predict(horizon=n_val, store_id=store_id)
             return np.maximum(preds_df["predicted_value"].values[:n_val], 0.0)
         except Exception:
             logger.warning(
-                "  [%s] Prophet prediction failed — using zeros", store_id,
+                "  [%s] Prophet prediction failed — using zeros",
+                store_id,
                 exc_info=True,
             )
             return np.zeros(n_val)
@@ -334,7 +331,8 @@ class EnsembleForecaster:
             return np.maximum(preds_df["predicted_value"].values, 0.0)
         except Exception:
             logger.warning(
-                "  [%s] XGBoost prediction failed — using zeros", store_id,
+                "  [%s] XGBoost prediction failed — using zeros",
+                store_id,
                 exc_info=True,
             )
             return np.zeros(len(store_val))
@@ -377,8 +375,7 @@ class EnsembleForecaster:
         """
         if store_id not in self.meta_learners:
             raise KeyError(
-                f"No meta-learner for store_id='{store_id}'. "
-                f"Available: {list(self.meta_learners.keys())}"
+                f"No meta-learner for store_id='{store_id}'. " f"Available: {list(self.meta_learners.keys())}"
             )
 
         active = self.active_models[store_id]
@@ -465,13 +462,9 @@ class EnsembleForecaster:
         frames: List[pd.DataFrame] = []
         for sid in sorted(self.meta_learners.keys()):
             store_future = (
-                X_future.loc[X_future["store_id"] == sid].copy()
-                if "store_id" in X_future.columns
-                else X_future.copy()
+                X_future.loc[X_future["store_id"] == sid].copy() if "store_id" in X_future.columns else X_future.copy()
             )
-            frames.append(
-                self.predict(horizon=horizon, X_future=store_future, store_id=sid)
-            )
+            frames.append(self.predict(horizon=horizon, X_future=store_future, store_id=sid))
         return pd.concat(frames, ignore_index=True)
 
     # -- Weights -----------------------------------------------------------
@@ -482,10 +475,7 @@ class EnsembleForecaster:
             Nested dict ``{store_id: {'prophet': w1, 'xgb': w2}}``.
             Weights sum to approximately 1.0 for each store.
         """
-        return {
-            sid: self._normalised_weights(sid)
-            for sid in self.meta_learners
-        }
+        return {sid: self._normalised_weights(sid) for sid in self.meta_learners}
 
     def _normalised_weights(self, store_id: str) -> Dict[str, float]:
         """Compute normalised Ridge weights for *store_id*.
@@ -516,10 +506,7 @@ class EnsembleForecaster:
     # -- Repr --------------------------------------------------------------
     def __repr__(self) -> str:
         stores = list(self.meta_learners.keys())
-        return (
-            f"EnsembleForecaster(quality_threshold={self.quality_threshold_mape}, "
-            f"stores_fitted={stores})"
-        )
+        return f"EnsembleForecaster(quality_threshold={self.quality_threshold_mape}, " f"stores_fitted={stores})"
 
 
 # ---------------------------------------------------------------------------
@@ -530,7 +517,9 @@ if __name__ == "__main__":
     from unittest.mock import MagicMock
 
     def _make_mock_prophet(
-        store_ids: List[str], n_val: int, mape_values: Optional[Dict[str, float]] = None,
+        store_ids: List[str],
+        n_val: int,
+        mape_values: Optional[Dict[str, float]] = None,
     ) -> MagicMock:
         """Create a mock ProphetForecaster.
 
@@ -545,7 +534,7 @@ if __name__ == "__main__":
         mock = MagicMock()
 
         def predict_side_effect(horizon: int, store_id: str) -> pd.DataFrame:
-            rng = np.random.default_rng(hash(store_id) % (2 ** 31))
+            rng = np.random.default_rng(hash(store_id) % (2**31))
             vals = rng.uniform(800, 1200, horizon)
             return pd.DataFrame(
                 {
@@ -564,7 +553,8 @@ if __name__ == "__main__":
         return mock
 
     def _make_mock_xgb(
-        store_ids: List[str], n_val: int,
+        store_ids: List[str],
+        n_val: int,
     ) -> MagicMock:
         """Create a mock XGBoostForecaster.
 
@@ -579,7 +569,7 @@ if __name__ == "__main__":
 
         def predict_side_effect(X: pd.DataFrame, store_id: str) -> pd.DataFrame:
             n = len(X)
-            rng = np.random.default_rng(hash(store_id) % (2 ** 31) + 1)
+            rng = np.random.default_rng(hash(store_id) % (2**31) + 1)
             vals = rng.uniform(800, 1200, n)
             return pd.DataFrame(
                 {
@@ -720,8 +710,14 @@ if __name__ == "__main__":
         preds = ens.predict(horizon=14, X_future=X_future, store_id="store_0")
         assert len(preds) == 14, f"Expected 14 rows, got {len(preds)}"
         expected_cols = {
-            "forecast_date", "store_id", "predicted_value",
-            "lower_80", "upper_80", "lower_95", "upper_95", "model_name",
+            "forecast_date",
+            "store_id",
+            "predicted_value",
+            "lower_80",
+            "upper_80",
+            "lower_95",
+            "upper_95",
+            "model_name",
         }
         assert set(preds.columns) == expected_cols
         print("PASS: test_prediction_shape")

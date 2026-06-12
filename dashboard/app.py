@@ -4,14 +4,13 @@ Afficionado Demand Intelligence Platform — Main Entrypoint
 Run:  streamlit run dashboard/app.py
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
 import sqlite3
-import os
-import glob
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import streamlit as st
 
 # ─── Page Config ────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -413,9 +412,21 @@ def _generate_demo_actuals() -> pd.DataFrame:
 def _hour_weight(hour: int) -> float:
     """Return fraction of daily revenue for a given hour (realistic coffee shop)."""
     weights = {
-        6: 0.04, 7: 0.08, 8: 0.12, 9: 0.11, 10: 0.10,
-        11: 0.09, 12: 0.09, 13: 0.08, 14: 0.06, 15: 0.05,
-        16: 0.05, 17: 0.04, 18: 0.04, 19: 0.03, 20: 0.02,
+        6: 0.04,
+        7: 0.08,
+        8: 0.12,
+        9: 0.11,
+        10: 0.10,
+        11: 0.09,
+        12: 0.09,
+        13: 0.08,
+        14: 0.06,
+        15: 0.05,
+        16: 0.05,
+        17: 0.04,
+        18: 0.04,
+        19: 0.03,
+        20: 0.02,
     }
     return weights.get(hour, 0.03)
 
@@ -513,9 +524,7 @@ with st.sidebar:
     # Data Freshness Badge
     st.markdown("")
     if st.session_state.last_refresh:
-        hours_since = (
-            datetime.now() - st.session_state.last_refresh
-        ).total_seconds() / 3600
+        hours_since = (datetime.now() - st.session_state.last_refresh).total_seconds() / 3600
         if hours_since < 1:
             st.markdown(
                 '<div class="fresh-badge">✅ Data is fresh</div>',

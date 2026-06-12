@@ -5,7 +5,6 @@ a walk-forward cross-validation splitter, and a multi-store leaderboard.
 """
 
 import logging
-import warnings
 from typing import Generator, Optional
 
 import numpy as np
@@ -36,9 +35,7 @@ def mean_absolute_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     if len(y_true) == 0 or len(y_pred) == 0:
         raise ValueError("Inputs must not be empty.")
     if len(y_true) != len(y_pred):
-        raise ValueError(
-            f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}"
-        )
+        raise ValueError(f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}")
     return float(np.mean(np.abs(y_true - y_pred)))
 
 
@@ -59,9 +56,7 @@ def root_mean_squared_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     if len(y_true) == 0 or len(y_pred) == 0:
         raise ValueError("Inputs must not be empty.")
     if len(y_true) != len(y_pred):
-        raise ValueError(
-            f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}"
-        )
+        raise ValueError(f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}")
     return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
 
 
@@ -88,9 +83,7 @@ def mean_absolute_percentage_error(
     if len(y_true) == 0 or len(y_pred) == 0:
         raise ValueError("Inputs must not be empty.")
     if len(y_true) != len(y_pred):
-        raise ValueError(
-            f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}"
-        )
+        raise ValueError(f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}")
 
     mask = y_true != 0.0
     n_zeros = int((~mask).sum())
@@ -134,9 +127,7 @@ def peak_error_rate(
     if len(y_true) == 0 or len(y_pred) == 0:
         raise ValueError("Inputs must not be empty.")
     if len(y_true) != len(y_pred):
-        raise ValueError(
-            f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}"
-        )
+        raise ValueError(f"Length mismatch: y_true={len(y_true)}, y_pred={len(y_pred)}")
 
     threshold = float(np.percentile(y_true, threshold_percentile))
     peak_mask = y_true >= threshold
@@ -317,10 +308,9 @@ class ModelEvaluator:
             test_end_date = dates[test_end_idx - 1]
 
             train_df = df[df["_parsed_date"] <= train_end_date].drop(columns=["_parsed_date"])
-            test_df = df[
-                (df["_parsed_date"] >= test_start_date)
-                & (df["_parsed_date"] <= test_end_date)
-            ].drop(columns=["_parsed_date"])
+            test_df = df[(df["_parsed_date"] >= test_start_date) & (df["_parsed_date"] <= test_end_date)].drop(
+                columns=["_parsed_date"]
+            )
             yield train_df, test_df
 
     @staticmethod

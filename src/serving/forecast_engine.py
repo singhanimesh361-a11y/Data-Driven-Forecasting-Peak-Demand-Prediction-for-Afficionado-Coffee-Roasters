@@ -19,16 +19,16 @@ import os
 import sys
 import time
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Structured JSON logging
 # ---------------------------------------------------------------------------
+
 
 class JSONFormatter(logging.Formatter):
     """Emit structured JSON log lines for production log aggregation."""
@@ -70,8 +70,15 @@ logger = _get_logger()
 
 STORES: List[str] = ["Store_1", "Store_2", "Store_3"]
 CATEGORIES: List[str] = [
-    "Coffee", "Tea", "Bakery", "Drinking Chocolate", "Coffee beans",
-    "Branded", "Loose Tea", "Flavours", "Packaged Chocolate",
+    "Coffee",
+    "Tea",
+    "Bakery",
+    "Drinking Chocolate",
+    "Coffee beans",
+    "Branded",
+    "Loose Tea",
+    "Flavours",
+    "Packaged Chocolate",
 ]
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 2  # seconds
@@ -81,6 +88,7 @@ DATA_FRESHNESS_HOURS = 25  # data older than this → stale
 # ---------------------------------------------------------------------------
 # Retry decorator with exponential backoff
 # ---------------------------------------------------------------------------
+
 
 def retry_with_backoff(max_retries: int = MAX_RETRIES, backoff_base: int = RETRY_BACKOFF_BASE):
     """Decorator: retry a function with exponential back-off on exception."""
@@ -93,21 +101,27 @@ def retry_with_backoff(max_retries: int = MAX_RETRIES, backoff_base: int = RETRY
                     return func(*args, **kwargs)
                 except Exception as exc:
                     last_exc = exc
-                    wait = backoff_base ** attempt
+                    wait = backoff_base**attempt
                     logger.warning(
                         "Attempt %d/%d for %s failed — retrying in %ds",
-                        attempt, max_retries, func.__name__, wait,
+                        attempt,
+                        max_retries,
+                        func.__name__,
+                        wait,
                     )
                     time.sleep(wait)
             logger.error("All %d attempts for %s exhausted", max_retries, func.__name__)
             raise last_exc  # type: ignore[misc]
+
         return wrapper
+
     return decorator
 
 
 # ---------------------------------------------------------------------------
 # ForecastEngine
 # ---------------------------------------------------------------------------
+
 
 class ForecastEngine:
     """
@@ -170,6 +184,7 @@ class ForecastEngine:
         model_path = self.registry / f"{store}_{category}_best.pkl"
         if model_path.exists():
             import pickle
+
             with open(model_path, "rb") as f:
                 model = pickle.load(f)
             logger.info("Loaded model from %s", model_path)
@@ -177,6 +192,7 @@ class ForecastEngine:
 
         # Fallback: train a quick Prophet model
         from prophet import Prophet
+
         model = Prophet(
             yearly_seasonality=True,
             weekly_seasonality=True,
@@ -185,7 +201,8 @@ class ForecastEngine:
         )
         logger.info(
             "No cached model for %s/%s — will train Prophet baseline",
-            store, category,
+            store,
+            category,
         )
         return model
 
@@ -208,7 +225,6 @@ class ForecastEngine:
         pd.DataFrame
             Combined forecast dataframe written to Parquet.
         """
-        from prophet import Prophet
 
         t0 = time.time()
         df = self._load_data()
@@ -216,9 +232,7 @@ class ForecastEngine:
 
         for store in STORES:
             for category in CATEGORIES:
-                store_cat_df = df[
-                    (df["store_id"] == store) & (df["product_category"] == category)
-                ].copy()
+                store_cat_df = df[(df["store_id"] == store) & (df["product_category"] == category)].copy()
 
                 if store_cat_df.empty:
                     logger.warning("No data for %s / %s — skipping", store, category)
@@ -226,8 +240,7 @@ class ForecastEngine:
 
                 # Aggregate daily
                 daily = (
-                    store_cat_df
-                    .groupby(pd.Grouper(key="transaction_date", freq="D"))
+                    store_cat_df.groupby(pd.Grouper(key="transaction_date", freq="D"))
                     .agg(y=("transaction_qty", "sum"))
                     .reset_index()
                     .rename(columns={"transaction_date": "ds"})
@@ -251,7 +264,9 @@ class ForecastEngine:
 
                 logger.info(
                     "Forecast generated: %s / %s — %d days",
-                    store, category, horizon,
+                    store,
+                    category,
+                    horizon,
                     extra={"store": store, "category": category, "horizon": horizon},
                 )
 
@@ -271,7 +286,8 @@ class ForecastEngine:
         elapsed = time.time() - t0
         logger.info(
             "Daily forecasts complete — %d rows in %.1fs",
-            len(combined), elapsed,
+            len(combined),
+            elapsed,
             extra={"rows": len(combined), "duration_s": round(elapsed, 2)},
         )
         return combined
@@ -298,9 +314,7 @@ class ForecastEngine:
 
         # Need an hourly timestamp
         if "transaction_time" in df.columns:
-            df["ds"] = pd.to_datetime(
-                df["transaction_date"].astype(str) + " " + df["transaction_time"].astype(str)
-            )
+            df["ds"] = pd.to_datetime(df["transaction_date"].astype(str) + " " + df["transaction_time"].astype(str))
         elif "transaction_datetime" in df.columns:
             df["ds"] = pd.to_datetime(df["transaction_datetime"])
         else:
@@ -313,13 +327,7 @@ class ForecastEngine:
             if store_df.empty:
                 continue
 
-            hourly = (
-                store_df
-                .set_index("ds")
-                .resample("h")
-                .agg(y=("transaction_qty", "sum"))
-                .reset_index()
-            )
+            hourly = store_df.set_index("ds").resample("h").agg(y=("transaction_qty", "sum")).reset_index()
             hourly = hourly[hourly["y"] > 0]
 
             model = Prophet(
@@ -341,7 +349,8 @@ class ForecastEngine:
 
             logger.info(
                 "Hourly forecast generated: %s — %d hours",
-                store, horizon_hours,
+                store,
+                horizon_hours,
                 extra={"store": store, "horizon": horizon_hours},
             )
 
@@ -355,7 +364,8 @@ class ForecastEngine:
         elapsed = time.time() - t0
         logger.info(
             "Hourly forecasts complete — %d rows in %.1fs",
-            len(combined), elapsed,
+            len(combined),
+            elapsed,
             extra={"rows": len(combined), "duration_s": round(elapsed, 2)},
         )
         return combined
@@ -380,7 +390,9 @@ class ForecastEngine:
         status = "FRESH" if is_fresh else "STALE"
         logger.info(
             "Forecast freshness: %s (age=%.1f hours, threshold=%d hours)",
-            status, age_hours, DATA_FRESHNESS_HOURS,
+            status,
+            age_hours,
+            DATA_FRESHNESS_HOURS,
         )
         return is_fresh
 
@@ -447,7 +459,8 @@ class ForecastEngine:
 
             logger.info(
                 "Scheduled refresh %s in %.1fs",
-                run_report["status"].upper(), elapsed,
+                run_report["status"].upper(),
+                elapsed,
                 extra={"duration_s": run_report["duration_s"]},
             )
 
@@ -457,6 +470,7 @@ class ForecastEngine:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
+
 
 def _daemon_mode(engine: ForecastEngine) -> None:
     """Run forecast engine as a persistent daemon with APScheduler."""

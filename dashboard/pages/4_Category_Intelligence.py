@@ -2,11 +2,12 @@
 Category Intelligence — Product Mix, Trends & Basket Analysis
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(
     page_title="Category Intelligence | ADIP",
@@ -136,11 +137,7 @@ cat_cols = list(CAT_COL_MAP.values())
 available_cols = [c for c in cat_cols if c in fc.columns]
 
 if available_cols:
-    cat_totals = {
-        cat: fc[col].sum()
-        for cat, col in CAT_COL_MAP.items()
-        if col in fc.columns
-    }
+    cat_totals = {cat: fc[col].sum() for cat, col in CAT_COL_MAP.items() if col in fc.columns}
 else:
     # Fallback synthetic
     total_rev = fc["yhat"].sum() if "yhat" in fc.columns else 100000
@@ -166,16 +163,18 @@ with top_l:
     pull = [0.05 if c == selected_category else 0 for c in labels]
 
     fig_pie = go.Figure(
-        data=[go.Pie(
-            labels=labels,
-            values=values,
-            hole=0.55,
-            pull=pull,
-            marker=dict(colors=colors, line=dict(color="#0f0f1a", width=2)),
-            textfont=dict(size=12, color=PAL["text"], family="Inter"),
-            textinfo="label+percent",
-            hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
-        )]
+        data=[
+            go.Pie(
+                labels=labels,
+                values=values,
+                hole=0.55,
+                pull=pull,
+                marker=dict(colors=colors, line=dict(color="#0f0f1a", width=2)),
+                textfont=dict(size=12, color=PAL["text"], family="Inter"),
+                textinfo="label+percent",
+                hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+            )
+        ]
     )
 
     total_rev = sum(values)
@@ -190,7 +189,10 @@ with top_l:
         annotations=[
             dict(
                 text=f"<b>${total_rev:,.0f}</b><br><span style='font-size:11px;color:#8b949e'>Total Revenue</span>",
-                x=0.5, y=0.5, font_size=18, showarrow=False,
+                x=0.5,
+                y=0.5,
+                font_size=18,
+                showarrow=False,
                 font=dict(color=PAL["text"], family="Inter"),
             )
         ],
@@ -228,7 +230,7 @@ with top_r:
         ("Avg Daily", f"${sel_total / max(len(fc['ds'].unique()) if 'ds' in fc.columns else 60, 1):,.0f}"),
     ]
 
-    html = '<div class="cat-insight-card"><h4>📋 ' + selected_category + ' Overview</h4>'
+    html = '<div class="cat-insight-card"><h4>📋 ' + selected_category + " Overview</h4>"
     for label, val in metrics_data:
         html += f"""
         <div class="ci-row">
@@ -261,26 +263,34 @@ if "ds" in fc.columns:
         width = 3 if cat == selected_category else 1.5
         opacity = 1.0 if cat == selected_category else 0.5
 
-        fig_trend.add_trace(go.Scatter(
-            x=daily_cats["ds"],
-            y=daily_cats[col],
-            mode="lines",
-            name=cat,
-            line=dict(color=color, width=width),
-            opacity=opacity,
-            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>" + cat + "</extra>",
-        ))
+        fig_trend.add_trace(
+            go.Scatter(
+                x=daily_cats["ds"],
+                y=daily_cats[col],
+                mode="lines",
+                name=cat,
+                line=dict(color=color, width=width),
+                opacity=opacity,
+                hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>" + cat + "</extra>",
+            )
+        )
 
 fig_trend.add_vline(
-    x=today, line_dash="dash", line_color="#FF6B6B", line_width=1.5,
-    annotation_text="Today", annotation_position="top",
+    x=today,
+    line_dash="dash",
+    line_color="#FF6B6B",
+    line_width=1.5,
+    annotation_text="Today",
+    annotation_position="top",
     annotation_font=dict(color="#FF6B6B", size=10),
 )
 
 fig_trend.update_layout(
     template="plotly_dark",
-    paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-    height=350, margin=dict(l=10, r=10, t=30, b=30),
+    paper_bgcolor=PAL["bg"],
+    plot_bgcolor=PAL["bg"],
+    height=350,
+    margin=dict(l=10, r=10, t=30, b=30),
     font=dict(family="Inter", color=PAL["text"]),
     legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center", font=dict(size=11)),
     xaxis=dict(showgrid=True, gridcolor=PAL["grid"], title=""),
@@ -307,24 +317,41 @@ with bot_l:
     np.random.seed(hash(selected_category) % 2**31)
     product_data = {
         "Coffee": [
-            ("Espresso", 0.28), ("Latte", 0.25), ("Cappuccino", 0.18),
-            ("Americano", 0.14), ("Cold Brew", 0.10), ("Mocha", 0.05),
+            ("Espresso", 0.28),
+            ("Latte", 0.25),
+            ("Cappuccino", 0.18),
+            ("Americano", 0.14),
+            ("Cold Brew", 0.10),
+            ("Mocha", 0.05),
         ],
         "Tea": [
-            ("Matcha Latte", 0.30), ("Chai Latte", 0.25), ("Earl Grey", 0.18),
-            ("Green Tea", 0.15), ("Herbal Blend", 0.12),
+            ("Matcha Latte", 0.30),
+            ("Chai Latte", 0.25),
+            ("Earl Grey", 0.18),
+            ("Green Tea", 0.15),
+            ("Herbal Blend", 0.12),
         ],
         "Pastry": [
-            ("Croissant", 0.30), ("Muffin", 0.22), ("Scone", 0.18),
-            ("Danish", 0.15), ("Cookies", 0.10), ("Cinnamon Roll", 0.05),
+            ("Croissant", 0.30),
+            ("Muffin", 0.22),
+            ("Scone", 0.18),
+            ("Danish", 0.15),
+            ("Cookies", 0.10),
+            ("Cinnamon Roll", 0.05),
         ],
         "Sandwich": [
-            ("Turkey Club", 0.28), ("Avocado Toast", 0.25), ("BLT", 0.20),
-            ("Grilled Cheese", 0.15), ("Veggie Wrap", 0.12),
+            ("Turkey Club", 0.28),
+            ("Avocado Toast", 0.25),
+            ("BLT", 0.20),
+            ("Grilled Cheese", 0.15),
+            ("Veggie Wrap", 0.12),
         ],
         "Other": [
-            ("Bottled Water", 0.30), ("Fresh Juice", 0.25), ("Smoothie", 0.20),
-            ("Energy Bar", 0.15), ("Yogurt Parfait", 0.10),
+            ("Bottled Water", 0.30),
+            ("Fresh Juice", 0.25),
+            ("Smoothie", 0.20),
+            ("Energy Bar", 0.15),
+            ("Yogurt Parfait", 0.10),
         ],
     }
 

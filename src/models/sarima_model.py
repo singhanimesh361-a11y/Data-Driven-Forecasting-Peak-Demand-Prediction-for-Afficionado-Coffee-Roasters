@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -83,6 +83,7 @@ def _mlflow_log_param(key: str, value: Any) -> None:
     """
     try:
         import mlflow  # noqa: WPS433
+
         if mlflow.active_run() is not None:
             mlflow.log_param(key, value)
     except ImportError:
@@ -100,6 +101,7 @@ def _mlflow_log_metric(key: str, value: float) -> None:
     """
     try:
         import mlflow  # noqa: WPS433
+
         if mlflow.active_run() is not None:
             mlflow.log_metric(key, value)
     except ImportError:
@@ -183,21 +185,14 @@ class SARIMAForecaster(BaseForecaster):
         """
         if target_col not in df.columns:
             raise ValueError(
-                f"Target column '{target_col}' not found in DataFrame. "
-                f"Available columns: {list(df.columns)}"
+                f"Target column '{target_col}' not found in DataFrame. " f"Available columns: {list(df.columns)}"
             )
 
         store_ids: List[str] = sorted(df["store_id"].unique().tolist())
-        logger.info(
-            "Fitting SARIMA models for %d store(s): %s", len(store_ids), store_ids
-        )
+        logger.info("Fitting SARIMA models for %d store(s): %s", len(store_ids), store_ids)
 
         for sid in store_ids:
-            store_df = (
-                df.loc[df["store_id"] == sid]
-                .sort_values("date")
-                .reset_index(drop=True)
-            )
+            store_df = df.loc[df["store_id"] == sid].sort_values("date").reset_index(drop=True)
             y = store_df[target_col].astype(float)
             self.training_data[sid] = y.copy()
 
@@ -206,9 +201,7 @@ class SARIMAForecaster(BaseForecaster):
             # Suppress convergence warnings from statsmodels
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
-                warnings.filterwarnings(
-                    "ignore", message=".*convergence.*", category=Warning
-                )
+                warnings.filterwarnings("ignore", message=".*convergence.*", category=Warning)
                 model = pm.auto_arima(
                     y,
                     seasonal=True,
@@ -276,25 +269,19 @@ class SARIMAForecaster(BaseForecaster):
         """
         if store_id not in self.models:
             raise KeyError(
-                f"No fitted model for store_id='{store_id}'. "
-                f"Available stores: {list(self.models.keys())}"
+                f"No fitted model for store_id='{store_id}'. " f"Available stores: {list(self.models.keys())}"
             )
 
         model = self.models[store_id]
 
         # 80 % interval
-        fc_80, ci_80 = model.predict(
-            n_periods=horizon, return_conf_int=True, alpha=0.20
-        )
+        fc_80, ci_80 = model.predict(n_periods=horizon, return_conf_int=True, alpha=0.20)
         # 95 % interval
-        fc_95, ci_95 = model.predict(
-            n_periods=horizon, return_conf_int=True, alpha=0.05
-        )
+        fc_95, ci_95 = model.predict(n_periods=horizon, return_conf_int=True, alpha=0.05)
 
         last_date = pd.Timestamp.now().normalize()
         # Try to infer last training date from index if available
         if store_id in self.training_data:
-            n_train = len(self.training_data[store_id])
             # Build date range starting the day after the last training obs
             last_date = pd.Timestamp.now().normalize()
 

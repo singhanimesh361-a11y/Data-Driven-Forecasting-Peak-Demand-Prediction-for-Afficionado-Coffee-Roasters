@@ -5,7 +5,6 @@ from YAML configuration files. Implements singleton pattern for
 efficient reuse across the application.
 """
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -15,8 +14,8 @@ import yaml
 # src/utils/config.py -> src/utils -> src -> project_root
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-_DEFAULT_STORES_PATH = _PROJECT_ROOT / 'configs' / 'stores.yaml'
-_DEFAULT_MODELS_PATH = _PROJECT_ROOT / 'configs' / 'models.yaml'
+_DEFAULT_STORES_PATH = _PROJECT_ROOT / "configs" / "stores.yaml"
+_DEFAULT_MODELS_PATH = _PROJECT_ROOT / "configs" / "models.yaml"
 
 
 class ADIPConfig:
@@ -31,7 +30,7 @@ class ADIPConfig:
         models_config: Parsed contents of models.yaml.
     """
 
-    _instance: Optional['ADIPConfig'] = None
+    _instance: Optional["ADIPConfig"] = None
 
     def __init__(
         self,
@@ -58,10 +57,10 @@ class ADIPConfig:
         if not models_file.exists():
             raise FileNotFoundError(f"Models config not found: {models_file}")
 
-        with open(stores_file, 'r', encoding='utf-8') as fh:
+        with open(stores_file, "r", encoding="utf-8") as fh:
             self.stores_config: dict = yaml.safe_load(fh)
 
-        with open(models_file, 'r', encoding='utf-8') as fh:
+        with open(models_file, "r", encoding="utf-8") as fh:
             self.models_config: dict = yaml.safe_load(fh)
 
     # ------------------------------------------------------------------
@@ -73,7 +72,7 @@ class ADIPConfig:
         cls,
         stores_path: Optional[str] = None,
         models_path: Optional[str] = None,
-    ) -> 'ADIPConfig':
+    ) -> "ADIPConfig":
         """Return the singleton ADIPConfig instance, creating it if needed.
 
         Args:
@@ -103,7 +102,7 @@ class ADIPConfig:
         Returns:
             Dict mapping integer store IDs to their metadata dicts.
         """
-        return self.stores_config.get('stores', {})
+        return self.stores_config.get("stores", {})
 
     @property
     def store_id_map(self) -> dict:
@@ -112,7 +111,7 @@ class ADIPConfig:
         Returns:
             Dict mapping store name strings to integer IDs.
         """
-        return self.stores_config.get('store_id_map', {})
+        return self.stores_config.get("store_id_map", {})
 
     def get_store_name(self, store_id: int) -> str:
         """Look up the human-readable name for a store.
@@ -129,7 +128,7 @@ class ADIPConfig:
         store = self.stores.get(store_id)
         if store is None:
             raise KeyError(f"Unknown store_id: {store_id}")
-        return store['name']
+        return store["name"]
 
     def get_store_ids(self) -> list[int]:
         """Return a sorted list of all configured store IDs.
@@ -150,7 +149,7 @@ class ADIPConfig:
         Returns:
             Dict mapping model name strings to their config dicts.
         """
-        return self.models_config.get('models', {})
+        return self.models_config.get("models", {})
 
     @property
     def evaluation_thresholds(self) -> dict:
@@ -159,8 +158,8 @@ class ADIPConfig:
         Returns:
             Dict with keys like ``mape_pass``, ``mape_review``.
         """
-        eval_cfg = self.models_config.get('evaluation', {})
-        return eval_cfg.get('thresholds', {})
+        eval_cfg = self.models_config.get("evaluation", {})
+        return eval_cfg.get("thresholds", {})
 
     @property
     def walk_forward_config(self) -> dict:
@@ -169,8 +168,8 @@ class ADIPConfig:
         Returns:
             Dict with keys ``n_splits`` and ``test_days``.
         """
-        eval_cfg = self.models_config.get('evaluation', {})
-        return eval_cfg.get('walk_forward', {})
+        eval_cfg = self.models_config.get("evaluation", {})
+        return eval_cfg.get("walk_forward", {})
 
     @property
     def holdout_days(self) -> int:
@@ -179,8 +178,8 @@ class ADIPConfig:
         Returns:
             Integer number of holdout days.
         """
-        eval_cfg = self.models_config.get('evaluation', {})
-        return int(eval_cfg.get('holdout_days', 30))
+        eval_cfg = self.models_config.get("evaluation", {})
+        return int(eval_cfg.get("holdout_days", 30))
 
     def get_model_config(self, model_name: str) -> dict:
         """Retrieve configuration for a specific model.
@@ -197,10 +196,7 @@ class ADIPConfig:
         """
         cfg = self.models.get(model_name)
         if cfg is None:
-            raise KeyError(
-                f"Unknown model '{model_name}'. "
-                f"Available: {list(self.models.keys())}"
-            )
+            raise KeyError(f"Unknown model '{model_name}'. " f"Available: {list(self.models.keys())}")
         return cfg
 
     # ------------------------------------------------------------------
@@ -210,6 +206,4 @@ class ADIPConfig:
     def __repr__(self) -> str:
         store_ids = self.get_store_ids()
         model_names = list(self.models.keys())
-        return (
-            f"ADIPConfig(stores={store_ids}, models={model_names})"
-        )
+        return f"ADIPConfig(stores={store_ids}, models={model_names})"

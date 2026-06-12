@@ -2,12 +2,12 @@
 Model Comparison — Leaderboard, Diagnostics & Validation
 """
 
-import streamlit as st
-import pandas as pd
+from datetime import datetime
+
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
+import streamlit as st
 
 st.set_page_config(
     page_title="Model Comparison | ADIP",
@@ -93,20 +93,36 @@ np.random.seed(42)
 
 model_metrics = {
     "LightGBM": {
-        "MAPE": 5.8, "RMSE": 165, "MAE": 128, "Peak Error Rate": 8.2,
-        "Coverage 80%": 83.5, "Coverage 95%": 96.1,
+        "MAPE": 5.8,
+        "RMSE": 165,
+        "MAE": 128,
+        "Peak Error Rate": 8.2,
+        "Coverage 80%": 83.5,
+        "Coverage 95%": 96.1,
     },
     "XGBoost": {
-        "MAPE": 6.3, "RMSE": 178, "MAE": 139, "Peak Error Rate": 9.1,
-        "Coverage 80%": 81.2, "Coverage 95%": 94.8,
+        "MAPE": 6.3,
+        "RMSE": 178,
+        "MAE": 139,
+        "Peak Error Rate": 9.1,
+        "Coverage 80%": 81.2,
+        "Coverage 95%": 94.8,
     },
     "Prophet": {
-        "MAPE": 8.1, "RMSE": 210, "MAE": 168, "Peak Error Rate": 12.4,
-        "Coverage 80%": 78.9, "Coverage 95%": 93.5,
+        "MAPE": 8.1,
+        "RMSE": 210,
+        "MAE": 168,
+        "Peak Error Rate": 12.4,
+        "Coverage 80%": 78.9,
+        "Coverage 95%": 93.5,
     },
     "Ensemble": {
-        "MAPE": 5.2, "RMSE": 152, "MAE": 118, "Peak Error Rate": 7.5,
-        "Coverage 80%": 85.1, "Coverage 95%": 97.2,
+        "MAPE": 5.2,
+        "RMSE": 152,
+        "MAE": 118,
+        "Peak Error Rate": 7.5,
+        "Coverage 80%": 85.1,
+        "Coverage 95%": 97.2,
     },
 }
 
@@ -178,46 +194,60 @@ with mid_l:
         unsafe_allow_html=True,
     )
 
-    sel_model_scatter = st.selectbox(
-        "Select Model", MODEL_LIST, index=3, key="scatter_model"
-    )
+    sel_model_scatter = st.selectbox("Select Model", MODEL_LIST, index=3, key="scatter_model")
 
     fig_scatter = go.Figure()
 
     preds = model_preds[sel_model_scatter]
     color = MODEL_COLORS[sel_model_scatter]
 
-    fig_scatter.add_trace(go.Scatter(
-        x=actuals_synth, y=preds, mode="markers",
-        name=sel_model_scatter,
-        marker=dict(
-            color=color, size=6, opacity=0.6,
-            line=dict(color="rgba(255,255,255,0.1)", width=0.5),
-        ),
-        hovertemplate="Actual: $%{x:,.0f}<br>Predicted: $%{y:,.0f}<extra></extra>",
-    ))
+    fig_scatter.add_trace(
+        go.Scatter(
+            x=actuals_synth,
+            y=preds,
+            mode="markers",
+            name=sel_model_scatter,
+            marker=dict(
+                color=color,
+                size=6,
+                opacity=0.6,
+                line=dict(color="rgba(255,255,255,0.1)", width=0.5),
+            ),
+            hovertemplate="Actual: $%{x:,.0f}<br>Predicted: $%{y:,.0f}<extra></extra>",
+        )
+    )
 
     # Perfect prediction line
     min_val = min(actuals_synth.min(), preds.min())
     max_val = max(actuals_synth.max(), preds.max())
-    fig_scatter.add_trace(go.Scatter(
-        x=[min_val, max_val], y=[min_val, max_val],
-        mode="lines", name="Perfect Prediction",
-        line=dict(color="#8b949e", width=1.5, dash="dash"),
-    ))
+    fig_scatter.add_trace(
+        go.Scatter(
+            x=[min_val, max_val],
+            y=[min_val, max_val],
+            mode="lines",
+            name="Perfect Prediction",
+            line=dict(color="#8b949e", width=1.5, dash="dash"),
+        )
+    )
 
     fig_scatter.update_layout(
         template="plotly_dark",
-        paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-        height=400, margin=dict(l=10, r=10, t=20, b=40),
+        paper_bgcolor=PAL["bg"],
+        plot_bgcolor=PAL["bg"],
+        height=400,
+        margin=dict(l=10, r=10, t=20, b=40),
         font=dict(family="Inter", color=PAL["text"]),
         legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center", font=dict(size=10)),
         xaxis=dict(
-            showgrid=True, gridcolor=PAL["grid"], title="Actual Revenue ($)",
+            showgrid=True,
+            gridcolor=PAL["grid"],
+            title="Actual Revenue ($)",
             tickprefix="$",
         ),
         yaxis=dict(
-            showgrid=True, gridcolor=PAL["grid"], title="Predicted Revenue ($)",
+            showgrid=True,
+            gridcolor=PAL["grid"],
+            title="Predicted Revenue ($)",
             tickprefix="$",
         ),
     )
@@ -230,43 +260,53 @@ with mid_r:
         unsafe_allow_html=True,
     )
 
-    sel_model_resid = st.selectbox(
-        "Select Model", MODEL_LIST, index=3, key="resid_model"
-    )
+    sel_model_resid = st.selectbox("Select Model", MODEL_LIST, index=3, key="resid_model")
 
     residuals = model_preds[sel_model_resid] - actuals_synth
     color = MODEL_COLORS[sel_model_resid]
 
     fig_resid = go.Figure()
-    fig_resid.add_trace(go.Histogram(
-        x=residuals,
-        nbinsx=40,
-        marker_color=color,
-        opacity=0.75,
-        name="Residuals",
-        hovertemplate="Residual: $%{x:,.0f}<br>Count: %{y}<extra></extra>",
-    ))
+    fig_resid.add_trace(
+        go.Histogram(
+            x=residuals,
+            nbinsx=40,
+            marker_color=color,
+            opacity=0.75,
+            name="Residuals",
+            hovertemplate="Residual: $%{x:,.0f}<br>Count: %{y}<extra></extra>",
+        )
+    )
 
     # Add mean line
     mean_resid = residuals.mean()
     fig_resid.add_vline(
-        x=mean_resid, line_dash="dash", line_color="#FFD93D", line_width=2,
+        x=mean_resid,
+        line_dash="dash",
+        line_color="#FFD93D",
+        line_width=2,
         annotation_text=f"Mean: ${mean_resid:+,.0f}",
         annotation_position="top",
         annotation_font=dict(color="#FFD93D", size=10),
     )
     fig_resid.add_vline(
-        x=0, line_dash="solid", line_color="#8b949e", line_width=1,
+        x=0,
+        line_dash="solid",
+        line_color="#8b949e",
+        line_width=1,
     )
 
     fig_resid.update_layout(
         template="plotly_dark",
-        paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-        height=400, margin=dict(l=10, r=10, t=20, b=40),
+        paper_bgcolor=PAL["bg"],
+        plot_bgcolor=PAL["bg"],
+        height=400,
+        margin=dict(l=10, r=10, t=20, b=40),
         font=dict(family="Inter", color=PAL["text"]),
         xaxis=dict(
-            showgrid=True, gridcolor=PAL["grid"],
-            title="Prediction Error ($)", tickprefix="$",
+            showgrid=True,
+            gridcolor=PAL["grid"],
+            title="Prediction Error ($)",
+            tickprefix="$",
         ),
         yaxis=dict(showgrid=True, gridcolor=PAL["grid"], title="Frequency"),
         showlegend=False,
@@ -286,9 +326,7 @@ st.markdown(
 # Generate walk-forward MAPE over rolling windows
 np.random.seed(77)
 n_folds = 12
-fold_dates = pd.date_range(
-    end=datetime.now().date(), periods=n_folds, freq="W"
-)
+fold_dates = pd.date_range(end=datetime.now().date(), periods=n_folds, freq="W")
 
 fig_wf = go.Figure()
 
@@ -300,17 +338,24 @@ for model_name in MODEL_LIST:
     mapes = mapes - np.linspace(0, 0.8, n_folds)
 
     color = MODEL_COLORS[model_name]
-    fig_wf.add_trace(go.Scatter(
-        x=fold_dates, y=mapes, mode="lines+markers",
-        name=model_name,
-        line=dict(color=color, width=2.5),
-        marker=dict(size=7, color=color, line=dict(color="#0f0f1a", width=1.5)),
-        hovertemplate="<b>%{x|%b %d}</b><br>MAPE: %{y:.1f}%<extra>" + model_name + "</extra>",
-    ))
+    fig_wf.add_trace(
+        go.Scatter(
+            x=fold_dates,
+            y=mapes,
+            mode="lines+markers",
+            name=model_name,
+            line=dict(color=color, width=2.5),
+            marker=dict(size=7, color=color, line=dict(color="#0f0f1a", width=1.5)),
+            hovertemplate="<b>%{x|%b %d}</b><br>MAPE: %{y:.1f}%<extra>" + model_name + "</extra>",
+        )
+    )
 
 # Acceptable threshold
 fig_wf.add_hline(
-    y=10, line_dash="dash", line_color="#f85149", line_width=1.5,
+    y=10,
+    line_dash="dash",
+    line_color="#f85149",
+    line_width=1.5,
     annotation_text="Threshold (10%)",
     annotation_position="right",
     annotation_font=dict(color="#f85149", size=10),
@@ -318,8 +363,10 @@ fig_wf.add_hline(
 
 fig_wf.update_layout(
     template="plotly_dark",
-    paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-    height=350, margin=dict(l=10, r=10, t=20, b=30),
+    paper_bgcolor=PAL["bg"],
+    plot_bgcolor=PAL["bg"],
+    height=350,
+    margin=dict(l=10, r=10, t=20, b=30),
     font=dict(family="Inter", color=PAL["text"]),
     legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center", font=dict(size=11)),
     xaxis=dict(showgrid=True, gridcolor=PAL["grid"], title="Validation Fold"),
@@ -350,11 +397,12 @@ st.markdown(
         </p>
         <p>
             • Lowest MAPE at <span class="rec-highlight">{best_metrics['MAPE']:.1f}%</span>,
-              outperforming {runner_up} by {ranked_models[1][1]['MAPE'] - best_metrics['MAPE']:.1f} percentage points<br>
-            • Best prediction interval coverage: <span class="rec-highlight">{best_metrics['Coverage 95%']:.1f}%</span> at 95% level<br>
-            • Lowest peak demand error rate at <span class="rec-highlight">{best_metrics['Peak Error Rate']:.1f}%</span>,
+              outperforming {runner_up} by {ranked_models[1][1]['MAPE'] - best_metrics['MAPE']:.1f} pp<br>
+            • Best interval coverage: <span class="rec-highlight">{best_metrics['Coverage 95%']:.1f}%</span>
+              at 95% confidence level<br>
+            • Lowest peak error rate at <span class="rec-highlight">{best_metrics['Peak Error Rate']:.1f}%</span>,
               critical for staffing decisions<br>
-            • Consistent performance across all walk-forward validation folds with minimal variance
+            • Consistent performance across walk-forward folds
         </p>
         <p>
             <b>Considerations:</b> Monitor {best_model} performance weekly.

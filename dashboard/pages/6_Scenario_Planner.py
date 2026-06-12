@@ -2,12 +2,13 @@
 Scenario Planner — What-If Analysis & P&L Impact
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 import io
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 st.set_page_config(
     page_title="Scenario Planner | ADIP",
@@ -208,9 +209,7 @@ with ctrl_col:
 
 # ─── Scenario Calculations ─────────────────────────────────────────────────
 # Filter forecast data
-future_fc = fc[
-    (fc["ds"] >= today) & (fc["ds"] < today + timedelta(days=horizon_days))
-].copy()
+future_fc = fc[(fc["ds"] >= today) & (fc["ds"] < today + timedelta(days=horizon_days))].copy()
 
 if scenario_store != "All Stores":
     future_fc = future_fc[future_fc["store_name"] == scenario_store]
@@ -221,10 +220,15 @@ if future_fc.empty:
     st.stop()
 
 # Daily aggregation
-daily = future_fc.groupby("ds").agg(
-    yhat=("yhat", "sum"),
-    transactions=("transactions", "sum"),
-).reset_index().sort_values("ds")
+daily = (
+    future_fc.groupby("ds")
+    .agg(
+        yhat=("yhat", "sum"),
+        transactions=("transactions", "sum"),
+    )
+    .reset_index()
+    .sort_values("ds")
+)
 
 # Scenario multipliers
 shock_mult = demand_shock / 100.0
@@ -250,53 +254,73 @@ with chart_col:
     fig = go.Figure()
 
     # Shaded area between best and worst
-    fig.add_trace(go.Scatter(
-        x=pd.concat([daily["ds"], daily["ds"][::-1]]),
-        y=pd.concat([daily["best"], daily["worst"][::-1]]),
-        fill="toself",
-        fillcolor="rgba(56,139,253,0.08)",
-        line=dict(color="rgba(0,0,0,0)"),
-        name="Scenario Range",
-        showlegend=True,
-        hoverinfo="skip",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=pd.concat([daily["ds"], daily["ds"][::-1]]),
+            y=pd.concat([daily["best"], daily["worst"][::-1]]),
+            fill="toself",
+            fillcolor="rgba(56,139,253,0.08)",
+            line=dict(color="rgba(0,0,0,0)"),
+            name="Scenario Range",
+            showlegend=True,
+            hoverinfo="skip",
+        )
+    )
 
     # Best case
-    fig.add_trace(go.Scatter(
-        x=daily["ds"], y=daily["best"], mode="lines",
-        name=f"Best Case (+{shock_mult*100+10:.0f}%)",
-        line=dict(color=PAL["best"], width=2, dash="dot"),
-        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Best</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily["ds"],
+            y=daily["best"],
+            mode="lines",
+            name=f"Best Case (+{shock_mult*100+10:.0f}%)",
+            line=dict(color=PAL["best"], width=2, dash="dot"),
+            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Best</extra>",
+        )
+    )
 
     # Base case
-    fig.add_trace(go.Scatter(
-        x=daily["ds"], y=daily["base"], mode="lines",
-        name=f"Base Case ({shock_mult*100:+.0f}%)",
-        line=dict(color=PAL["base"], width=3),
-        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Base</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily["ds"],
+            y=daily["base"],
+            mode="lines",
+            name=f"Base Case ({shock_mult*100:+.0f}%)",
+            line=dict(color=PAL["base"], width=3),
+            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Base</extra>",
+        )
+    )
 
     # Worst case
-    fig.add_trace(go.Scatter(
-        x=daily["ds"], y=daily["worst"], mode="lines",
-        name=f"Worst Case ({shock_mult*100-10:.0f}%)",
-        line=dict(color=PAL["worst"], width=2, dash="dot"),
-        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Worst</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily["ds"],
+            y=daily["worst"],
+            mode="lines",
+            name=f"Worst Case ({shock_mult*100-10:.0f}%)",
+            line=dict(color=PAL["worst"], width=2, dash="dot"),
+            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Worst</extra>",
+        )
+    )
 
     # Original baseline (dashed gray)
-    fig.add_trace(go.Scatter(
-        x=daily["ds"], y=daily["yhat"], mode="lines",
-        name="Original Forecast",
-        line=dict(color="#484f58", width=1.5, dash="dash"),
-        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Original</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily["ds"],
+            y=daily["yhat"],
+            mode="lines",
+            name="Original Forecast",
+            line=dict(color="#484f58", width=1.5, dash="dash"),
+            hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>Original</extra>",
+        )
+    )
 
     fig.update_layout(
         template="plotly_dark",
-        paper_bgcolor=PAL["bg"], plot_bgcolor=PAL["bg"],
-        height=420, margin=dict(l=10, r=10, t=20, b=30),
+        paper_bgcolor=PAL["bg"],
+        plot_bgcolor=PAL["bg"],
+        height=420,
+        margin=dict(l=10, r=10, t=20, b=30),
         font=dict(family="Inter", color=PAL["text"]),
         legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center", font=dict(size=10)),
         xaxis=dict(showgrid=True, gridcolor=PAL["grid"], title=""),
@@ -314,6 +338,7 @@ st.markdown(
     '<div class="section-header">💰 P&L Impact Analysis</div>',
     unsafe_allow_html=True,
 )
+
 
 def compute_pnl(total_rev: float, total_txn: float, label: str) -> dict:
     """Compute P&L for a scenario."""
@@ -333,6 +358,7 @@ def compute_pnl(total_rev: float, total_txn: float, label: str) -> dict:
         "Net Margin": net_margin,
         "FTEs": ftes_needed,
     }
+
 
 original_rev = daily["yhat"].sum()
 original_txn = daily["transactions"].sum()
@@ -395,19 +421,21 @@ for scenario_name, col_rev, col_txn in [
         hourly_units = units / HOURS_PER_DAY
         ftes = max(np.ceil(hourly_units / UNITS_PER_FTE_PER_HOUR), 1)
         staff = ftes * STAFF_COST_PER_HOUR * HOURS_PER_DAY
-        export_rows.append({
-            "Date": row["ds"].strftime("%Y-%m-%d"),
-            "Scenario": scenario_name,
-            "Store": scenario_store,
-            "Revenue": round(rev, 2),
-            "Transactions": round(units, 0),
-            "Inventory Cost": round(inv_cost, 2),
-            "Staff Cost": round(staff, 2),
-            "Net Margin": round(rev - inv_cost - staff, 2),
-            "FTEs": ftes,
-            "Demand Shock (%)": demand_shock,
-            "Horizon": horizon_label,
-        })
+        export_rows.append(
+            {
+                "Date": row["ds"].strftime("%Y-%m-%d"),
+                "Scenario": scenario_name,
+                "Store": scenario_store,
+                "Revenue": round(rev, 2),
+                "Transactions": round(units, 0),
+                "Inventory Cost": round(inv_cost, 2),
+                "Staff Cost": round(staff, 2),
+                "Net Margin": round(rev - inv_cost - staff, 2),
+                "FTEs": ftes,
+                "Demand Shock (%)": demand_shock,
+                "Horizon": horizon_label,
+            }
+        )
 
 export_df = pd.DataFrame(export_rows)
 csv_buffer = io.StringIO()

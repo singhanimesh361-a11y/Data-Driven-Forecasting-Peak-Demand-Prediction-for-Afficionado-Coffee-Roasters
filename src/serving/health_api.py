@@ -18,15 +18,14 @@ Usage:
 from __future__ import annotations
 
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from src.serving.monitoring import ForecastMonitor
 
@@ -55,15 +54,14 @@ app.add_middleware(
 _monitor = ForecastMonitor(
     forecast_dir=os.environ.get("FORECAST_DIR", "data/forecast_store"),
     metrics_path=os.environ.get("METRICS_PATH", "data/processed/evaluation_metrics.csv"),
-    training_metrics_path=os.environ.get(
-        "TRAINING_METRICS_PATH", "data/processed/training_metrics.csv"
-    ),
+    training_metrics_path=os.environ.get("TRAINING_METRICS_PATH", "data/processed/training_metrics.csv"),
 )
 
 
 # ---------------------------------------------------------------------------
 # GET /health — primary liveness + freshness check
 # ---------------------------------------------------------------------------
+
 
 @app.get(
     "/health",
@@ -114,6 +112,7 @@ async def health_check(response: Response) -> Dict[str, Any]:
 # GET /health/drift — model drift status
 # ---------------------------------------------------------------------------
 
+
 @app.get(
     "/health/drift",
     summary="Model Drift Status",
@@ -154,6 +153,7 @@ async def drift_status() -> Dict[str, Any]:
 # GET /health/metrics — 7-day rolling MAPE
 # ---------------------------------------------------------------------------
 
+
 @app.get(
     "/health/metrics",
     summary="Forecast Accuracy Metrics",
@@ -167,9 +167,7 @@ async def forecast_metrics() -> Dict[str, Any]:
     computes prediction accuracy.
     """
     forecast_dir = Path(os.environ.get("FORECAST_DIR", "data/forecast_store"))
-    actuals_path = Path(os.environ.get(
-        "ACTUALS_PATH", "data/processed/coffee_shop_sales_cleaned.parquet"
-    ))
+    actuals_path = Path(os.environ.get("ACTUALS_PATH", "data/processed/coffee_shop_sales_cleaned.parquet"))
 
     metrics: Dict[str, Any] = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -209,37 +207,31 @@ async def forecast_metrics() -> Dict[str, Any]:
     for store in stores:
         store_forecasts = forecast_df[forecast_df["store_id"] == store]
         categories = (
-            store_forecasts["product_category"].unique()
-            if "product_category" in store_forecasts.columns
-            else []
+            store_forecasts["product_category"].unique() if "product_category" in store_forecasts.columns else []
         )
 
         store_metrics: Dict[str, Any] = {}
 
         for category in categories:
-            cat_forecast = store_forecasts[
-                store_forecasts["product_category"] == category
-            ]
+            cat_forecast = store_forecasts[store_forecasts["product_category"] == category]
 
             entry: Dict[str, Any] = {
                 "forecast_rows": len(cat_forecast),
-                "forecast_mean": round(float(cat_forecast["yhat"].mean()), 2)
-                if "yhat" in cat_forecast.columns
-                else None,
+                "forecast_mean": (
+                    round(float(cat_forecast["yhat"].mean()), 2) if "yhat" in cat_forecast.columns else None
+                ),
             }
 
             # Compute MAPE if actuals are available
             if actuals_df is not None and "transaction_date" in actuals_df.columns:
                 try:
                     store_actuals = actuals_df[
-                        (actuals_df["store_id"] == store)
-                        & (actuals_df["product_category"] == category)
+                        (actuals_df["store_id"] == store) & (actuals_df["product_category"] == category)
                     ]
                     if not store_actuals.empty and "yhat" in cat_forecast.columns:
                         # Aggregate actuals daily
                         daily_actuals = (
-                            store_actuals
-                            .groupby(pd.Grouper(key="transaction_date", freq="D"))
+                            store_actuals.groupby(pd.Grouper(key="transaction_date", freq="D"))
                             .agg(actual=("transaction_qty", "sum"))
                             .reset_index()
                             .rename(columns={"transaction_date": "ds"})
@@ -258,14 +250,7 @@ async def forecast_metrics() -> Dict[str, Any]:
                         if len(merged) > 0:
                             # 7-day window
                             merged = merged.sort_values("ds").tail(7)
-                            mape = float(
-                                np.mean(
-                                    np.abs(
-                                        (merged["actual"] - merged["yhat"]) / merged["actual"]
-                                    )
-                                )
-                                * 100
-                            )
+                            mape = float(np.mean(np.abs((merged["actual"] - merged["yhat"]) / merged["actual"])) * 100)
                             entry["mape_7d"] = round(mape, 2)
                             entry["comparison_days"] = len(merged)
                 except Exception:
@@ -282,10 +267,12 @@ async def forecast_metrics() -> Dict[str, Any]:
 # Startup / shutdown events
 # ---------------------------------------------------------------------------
 
+
 @app.on_event("startup")
 async def startup_event():
     """Log startup and run initial health check."""
     import logging
+
     logger = logging.getLogger("adip.health_api")
     logger.info("ADIP Health API starting on port %s", os.environ.get("PORT", "8502"))
 
@@ -293,6 +280,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     import logging
+
     logger = logging.getLogger("adip.health_api")
     logger.info("ADIP Health API shutting down")
 

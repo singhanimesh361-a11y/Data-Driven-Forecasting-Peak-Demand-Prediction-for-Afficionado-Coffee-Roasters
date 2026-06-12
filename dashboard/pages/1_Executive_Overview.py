@@ -2,12 +2,12 @@
 Executive Overview — KPIs, Revenue Forecast & Peak Demand Alerts
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 # ─── Page Setup ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -19,7 +19,7 @@ st.set_page_config(
 
 # Reuse CSS from main app
 try:
-    from app import CUSTOM_CSS, STORE_MAP, STORE_NAMES, STORE_COLORS, MODEL_OPTIONS
+    from app import CUSTOM_CSS, MODEL_OPTIONS, STORE_COLORS, STORE_MAP, STORE_NAMES
 
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 except ImportError:
@@ -133,9 +133,7 @@ if not ac.empty and "date" in ac.columns:
             how="inner",
         )
         if not merged.empty and merged["revenue"].sum() > 0:
-            mape = (
-                (merged["yhat"] - merged["revenue"]).abs() / merged["revenue"].replace(0, 1)
-            ).mean() * 100
+            mape = ((merged["yhat"] - merged["revenue"]).abs() / merged["revenue"].replace(0, 1)).mean() * 100
         else:
             mape = 6.8
     else:
@@ -226,9 +224,7 @@ fig = go.Figure()
 
 store_colors_list = ["#00D4AA", "#FF6B6B", "#4ECDC4", "#388bfd", "#d29922"]
 active_stores = (
-    STORE_NAMES
-    if "All" in st.session_state.get("selected_stores", ["All"])
-    else st.session_state.selected_stores
+    STORE_NAMES if "All" in st.session_state.get("selected_stores", ["All"]) else st.session_state.selected_stores
 )
 
 for idx, store in enumerate(active_stores):
@@ -244,7 +240,7 @@ for idx, store in enumerate(active_stores):
             x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
             y=pd.concat([sfc["yhat_upper_95"], sfc["yhat_lower_95"][::-1]]),
             fill="toself",
-            fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.06)",
+            fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.06)",
             line=dict(color="rgba(0,0,0,0)"),
             name=f"{store} 95% CI",
             showlegend=False,
@@ -258,7 +254,7 @@ for idx, store in enumerate(active_stores):
             x=pd.concat([sfc["ds"], sfc["ds"][::-1]]),
             y=pd.concat([sfc["yhat_upper_80"], sfc["yhat_lower_80"][::-1]]),
             fill="toself",
-            fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.15)",
+            fillcolor=f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.15)",
             line=dict(color="rgba(0,0,0,0)"),
             name=f"{store} 80% CI",
             showlegend=False,
@@ -294,9 +290,7 @@ for idx, store in enumerate(active_stores):
                         line=dict(color=color, width=1.5, dash="dot"),
                         marker=dict(size=3, color=color),
                         opacity=0.7,
-                        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>"
-                        + store
-                        + " Actual</extra>",
+                        hovertemplate="<b>%{x|%b %d}</b><br>$%{y:,.0f}<extra>" + store + " Actual</extra>",
                     )
                 )
 
