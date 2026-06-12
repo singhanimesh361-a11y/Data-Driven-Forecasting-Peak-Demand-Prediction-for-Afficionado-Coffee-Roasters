@@ -1,0 +1,6 @@
+[run]
+omit =
+    src/serving/*
+    src/utils/*
+    src/models/lstm_model.py
+    src/models/registry.py

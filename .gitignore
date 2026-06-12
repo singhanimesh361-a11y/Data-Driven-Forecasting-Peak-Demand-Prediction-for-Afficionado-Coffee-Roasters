@@ -49,7 +49,6 @@ coverage.xml
 *.log
 .hypothesis/
 .pytest_cache/
-.coveragerc
 
 # Translations
 *.mo
