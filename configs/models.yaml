@@ -1,0 +1,65 @@
+# Afficionado Demand Intelligence Platform — Model Configuration
+# ==============================================================
+
+models:
+  sarima:
+    seasonal: true
+    m: 7
+    search_space:
+      p: [0, 3]
+      d: [0, 1]
+      q: [0, 3]
+      P: [0, 2]
+      D: [0, 1]
+      Q: [0, 2]
+    information_criterion: aic
+    stepwise: true
+
+  prophet:
+    weekly_seasonality: true
+    yearly_seasonality: false
+    daily_seasonality: false
+    seasonality_mode: multiplicative
+    uncertainty_samples: 1000
+    interval_width: 0.80
+    changepoint_prior_scale: 0.05
+    n_optuna_trials: 10
+
+  xgboost:
+    n_optuna_trials: 150
+    random_state: 42
+    early_stopping_rounds: 50
+    search_space:
+      n_estimators: [100, 1500]
+      max_depth: [3, 12]
+      learning_rate: [0.01, 0.3]
+      subsample: [0.6, 1.0]
+      colsample_bytree: [0.6, 1.0]
+      reg_alpha: [0.0, 10.0]
+      reg_lambda: [1.0, 10.0]
+      gamma: [0.0, 5.0]
+
+  lstm:
+    n_optuna_trials: 10
+    epochs: 100
+    batch_size: 32
+    seq_length: 14
+    search_space:
+      hidden_size: [32, 128]
+      num_layers: [1, 3]
+      dropout: [0.1, 0.5]
+      lr: [0.0001, 0.01]
+
+  ensemble:
+    meta_learner: ridge
+    alpha: 1.0
+    quality_threshold_mape: 25.0
+
+evaluation:
+  thresholds:
+    mape_pass: 15.0
+    mape_review: 20.0
+  walk_forward:
+    n_splits: 5
+    test_days: 7
+  holdout_days: 30

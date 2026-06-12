@@ -1,0 +1,136 @@
+# ============================================================================
+# Afficionado Demand Intelligence Platform — Docker Compose
+# Services: adip-app (Streamlit), mlflow-ui, scheduler (forecast daemon)
+# ============================================================================
+version: "3.9"
+
+x-common: &common-env
+  ADIP_ENV: production
+  TZ: UTC
+  PYTHONUNBUFFERED: "1"
+
+services:
+  # --------------------------------------------------------------------------
+  # 1. Streamlit Dashboard
+  # --------------------------------------------------------------------------
+  adip-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adip-app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      <<: *common-env
+      STREAMLIT_SERVER_PORT: "8501"
+      STREAMLIT_SERVER_ADDRESS: "0.0.0.0"
+      STREAMLIT_SERVER_HEADLESS: "true"
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+      MLFLOW_TRACKING_URI: "http://mlflow-ui:5000"
+    volumes:
+      - adip-data:/app/data
+    networks:
+      - adip-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # --------------------------------------------------------------------------
+  # 2. MLflow Tracking UI
+  # --------------------------------------------------------------------------
+  mlflow-ui:
+    image: python:3.11-slim
+    container_name: adip-mlflow
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      <<: *common-env
+    command: >
+      bash -c "
+        pip install --quiet mlflow==2.15.1 &&
+        mlflow server
+          --host 0.0.0.0
+          --port 5000
+          --backend-store-uri sqlite:///mlflow/mlflow.db
+          --default-artifact-root /mlflow/artifacts
+      "
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - adip-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  # --------------------------------------------------------------------------
+  # 3. Forecast Scheduler (nightly daemon)
+  # --------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: adip-scheduler
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      MLFLOW_TRACKING_URI: "http://mlflow-ui:5000"
+      FORECAST_HORIZON: "30"
+      SCHEDULE_HOUR: "2"
+      SCHEDULE_MINUTE: "0"
+    entrypoint: ["tini", "--"]
+    command: >
+      python -m src.serving.forecast_engine --mode=daemon
+    volumes:
+      - adip-data:/app/data
+    networks:
+      - adip-network
+    depends_on:
+      adip-app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+          cpus: "0.5"
+
+# ----------------------------------------------------------------------------
+# Volumes & Networks
+# ----------------------------------------------------------------------------
+volumes:
+  adip-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  mlflow-data:
+    driver: local
+
+networks:
+  adip-network:
+    driver: bridge
+    name: adip-network

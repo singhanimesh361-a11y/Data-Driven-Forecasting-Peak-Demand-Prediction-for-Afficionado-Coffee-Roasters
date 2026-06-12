@@ -1,0 +1,32 @@
+# Afficionado Coffee Roasters — Store Configuration
+# =================================================
+
+stores:
+  3:
+    name: Astoria
+    borough: Queens
+    address: "22-12 31st St, Astoria, NY"
+    peak_hour: 10
+    daily_capacity: 800
+    timezone: America/New_York
+
+  5:
+    name: Lower Manhattan
+    borough: Manhattan
+    address: "55 Broad St, New York, NY"
+    peak_hour: 9
+    daily_capacity: 750
+    timezone: America/New_York
+
+  8:
+    name: "Hell's Kitchen"
+    borough: Manhattan
+    address: "729 9th Ave, New York, NY"
+    peak_hour: 10
+    daily_capacity: 780
+    timezone: America/New_York
+
+store_id_map:
+  Astoria: 3
+  Lower Manhattan: 5
+  "Hell's Kitchen": 8

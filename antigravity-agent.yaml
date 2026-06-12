@@ -1,0 +1,188 @@
+# ===========================================================================
+# Afficionado Demand Intelligence Platform — Antigravity Agent Manifest
+# ===========================================================================
+# This file declares the ADIP agent for the Antigravity platform,
+# enabling autonomous forecast scheduling, monitoring, and chat.
+#
+# Spec: https://docs.antigravity.dev/agents/manifest
+
+apiVersion: antigravity.dev/v1
+kind: AgentManifest
+
+metadata:
+  name: afficionado-demand-intel
+  displayName: "Afficionado Demand Intelligence Platform"
+  description: >-
+    Multi-store, multi-category demand forecasting agent for specialty coffee
+    retail. Provides 30-day daily and 72-hour hourly forecasts using Prophet,
+    XGBoost, and ensemble models. Includes interactive Streamlit dashboard,
+    scenario planning, and automated drift monitoring.
+  version: "1.0.0"
+  labels:
+    domain: retail-analytics
+    industry: food-and-beverage
+    type: forecasting
+    tier: production
+
+spec:
+  # ---------------------------------------------------------------------------
+  # Runtime configuration
+  # ---------------------------------------------------------------------------
+  runtime:
+    image: ghcr.io/afficionado/adip:latest
+    port: 8501
+    healthCheck:
+      path: /_stcore/health
+      intervalSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+    resources:
+      cpu: "1.5"
+      memory: "2Gi"
+    env:
+      - name: ADIP_ENV
+        value: production
+      - name: STREAMLIT_SERVER_HEADLESS
+        value: "true"
+      - name: STREAMLIT_SERVER_PORT
+        value: "8501"
+      - name: MLFLOW_TRACKING_URI
+        value: "http://mlflow:5000"
+    secrets:
+      - name: ADIP_SLACK_WEBHOOK
+        description: "Slack webhook URL for alert notifications"
+      - name: SMTP_USER
+        description: "SMTP username for email alerts"
+      - name: SMTP_PASSWORD
+        description: "SMTP password for email alerts"
+
+  # ---------------------------------------------------------------------------
+  # Agent capabilities
+  # ---------------------------------------------------------------------------
+  capabilities:
+    - name: demand-forecast
+      description: >-
+        Generate daily (30-day) and hourly (72-hour) demand forecasts for
+        3 stores across 9 product categories using Prophet, XGBoost, and
+        ensemble models.
+      trigger:
+        type: schedule
+        cron: "0 2 * * *"  # Nightly at 02:00 UTC
+      inputs:
+        - name: horizon
+          type: integer
+          default: 30
+          description: "Forecast horizon in days"
+        - name: stores
+          type: array
+          default: ["Store_1", "Store_2", "Store_3"]
+          description: "Store IDs to generate forecasts for"
+
+    - name: drift-monitoring
+      description: >-
+        Monitor model performance and detect drift by comparing recent MAPE
+        against training baselines. Alert if MAPE increases by more than
+        10 percentage points.
+      trigger:
+        type: schedule
+        cron: "0 6 * * *"  # Daily at 06:00 UTC (after forecasts)
+      outputs:
+        - name: drift_report
+          type: object
+          description: "Drift analysis results per store×category pair"
+
+    - name: scenario-planning
+      description: >-
+        Run what-if scenarios for staffing and inventory decisions based on
+        forecast data. Supports peak-hour analysis (10 AM identified as peak)
+        and seasonal adjustments.
+
+    - name: health-monitoring
+      description: >-
+        Real-time health checks for forecast freshness, data availability,
+        and model performance. Exposes /health, /health/drift, and
+        /health/metrics endpoints.
+      trigger:
+        type: schedule
+        cron: "*/15 * * * *"  # Every 15 minutes
+
+  # ---------------------------------------------------------------------------
+  # Dashboard pages
+  # ---------------------------------------------------------------------------
+  pages:
+    - name: executive-overview
+      path: /
+      description: "KPI cards, revenue trends, store comparison heatmaps"
+
+    - name: daily-demand-forecast
+      path: /daily-forecast
+      description: "30-day demand forecasts with confidence intervals"
+
+    - name: hourly-demand-patterns
+      path: /hourly-patterns
+      description: "Intraday demand curves and 10 AM peak analysis"
+
+    - name: product-mix-analysis
+      path: /product-mix
+      description: "Category contribution, cross-sell patterns, trends"
+
+    - name: model-performance
+      path: /model-performance
+      description: "MAPE comparison, residual diagnostics, model registry"
+
+    - name: scenario-planner
+      path: /scenario-planner
+      description: "What-if staffing and inventory scenario builder"
+
+  # ---------------------------------------------------------------------------
+  # Data sources
+  # ---------------------------------------------------------------------------
+  data:
+    sources:
+      - name: transaction-data
+        type: parquet
+        path: data/processed/coffee_shop_sales_cleaned.parquet
+        description: "149,116 cleaned transactions across 3 stores"
+        schema:
+          columns:
+            - name: transaction_date
+              type: datetime
+            - name: store_id
+              type: string
+            - name: product_category
+              type: string
+            - name: transaction_qty
+              type: integer
+            - name: unit_price
+              type: float
+
+      - name: forecast-store
+        type: parquet
+        path: data/forecast_store/
+        description: "Generated forecast outputs (daily + hourly)"
+
+    outputs:
+      - name: daily-forecasts
+        type: parquet
+        path: data/forecast_store/daily_forecast_latest.parquet
+
+      - name: hourly-forecasts
+        type: parquet
+        path: data/forecast_store/hourly_forecast_latest.parquet
+
+  # ---------------------------------------------------------------------------
+  # Deployment metadata
+  # ---------------------------------------------------------------------------
+  deployment:
+    regions:
+      - us-central1
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetCPUUtilization: 70
+    monitoring:
+      healthEndpoint: /health
+      metricsEndpoint: /health/metrics
+      alertChannels:
+        - type: slack
+          secret: ADIP_SLACK_WEBHOOK
